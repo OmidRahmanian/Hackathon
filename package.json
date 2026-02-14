@@ -1,0 +1,41 @@
+{
+  "name": "postureos",
+  "version": "1.0.0",
+  "description": "PostureOS - camera-based posture/eye distance coach",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OmidRahmanian/Hackathon.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/OmidRahmanian/Hackathon/issues"
+  },
+  "homepage": "https://github.com/OmidRahmanian/Hackathon#readme",
+  "dependencies": {
+    "@ai-sdk/openai": "^3.0.29",
+    "@supabase/supabase-js": "^2.95.3",
+    "ai": "^6.0.86",
+    "next": "16.2.0-canary.45",
+    "openai": "^6.22.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.1.6",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "eslint": "^10.0.0",
+    "eslint-config-next": "^16.1.6",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3"
+  }
+}
