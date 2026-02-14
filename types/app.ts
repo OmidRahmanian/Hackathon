@@ -15,6 +15,7 @@ export type ReminderItem = {
   id: string;
   label: string;
   enabled: boolean;
+  intervalSeconds: number;
   custom?: boolean;
 };
 
