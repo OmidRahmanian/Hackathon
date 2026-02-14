@@ -1,0 +1,75 @@
+'use client';
+
+import Link from 'next/link';
+import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+
+export default function SignUpPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [status, setStatus] = useState('');
+
+  const handleSignUp = (event: FormEvent) => {
+    event.preventDefault();
+
+    if (!email || !password || !confirmPassword) {
+      setStatus('Fill all fields.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setStatus('Passwords do not match.');
+      return;
+    }
+
+    setStatus('Account created. Redirecting to login...');
+    setTimeout(() => router.replace('/login'), 700);
+  };
+
+  return (
+    <div className="mx-auto max-w-md pt-8">
+      <Card>
+        <h1 className="text-2xl font-semibold">Sign up</h1>
+        <p className="mt-1 text-sm soft-text">Create your account with email and password.</p>
+
+        <form onSubmit={handleSignUp} className="mt-5 space-y-3">
+          <Input
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="Enter email"
+          />
+          <Input
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Create password"
+          />
+          <Input
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+            placeholder="Confirm password"
+          />
+          <Button type="submit" className="w-full">
+            Create account
+          </Button>
+        </form>
+
+        <p className="mt-4 text-center text-xs soft-text">
+          Already have an account?{' '}
+          <Link href="/login" className="text-[#eee] underline">
+            Sign in
+          </Link>
+        </p>
+
+        {status ? <p className="mt-3 text-sm soft-text">{status}</p> : null}
+      </Card>
+    </div>
+  );
+}
