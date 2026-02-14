@@ -2,71 +2,35 @@ import type { NextRequest } from "next/server";
 
 export const runtime = "nodejs";
 
-const SYSTEM_PROMPT = `You are a supportive posture and ergonomics coach. Keep the tone encouraging and practical. Never give medical diagnoses or claim to treat conditions. Always return three sections in order:
-1) What is happening
-2) 3 actionable fixes
-3) 2-week improvement plan (Week 1, Week 2)`;
+const SYSTEM_PROMPT = `You are a neutral, general-purpose AI assistant.
+Answer the user's question directly, clearly, and without topic bias.
+If you are uncertain, say so instead of inventing details.`;
 
 type CoachRequestBody = {
   question?: string;
-  summary?: unknown;
 };
 
 const DEFAULT_LLM_URL = "http://127.0.0.1:11434";
 const DEFAULT_LLM_MODEL = "llama3.2";
+const LOCALHOST_URL_ONLY_PATTERN =
+  /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/?$/i;
 
-function formatSummary(summary: unknown): { text: string; parts: string[] } {
-  if (typeof summary === "string") {
-    const trimmed = summary.trim();
-    return { text: trimmed || "Not provided.", parts: [] };
-  }
+function isInvalidModelContent(content: string) {
+  const trimmed = content.trim();
+  if (!trimmed) return true;
+  if (LOCALHOST_URL_ONLY_PATTERN.test(trimmed)) return true;
 
-  if (summary && typeof summary === "object") {
-    const parts: string[] = [];
-    const record = summary as Record<string, unknown>;
-
-    if (typeof record.worstPostureType === "string") {
-      parts.push(`Most frequent issue: ${record.worstPostureType}`);
-    }
-    if (typeof record.averageScore === "number") {
-      parts.push(`Average posture score: ${record.averageScore}`);
-    }
-    if (typeof record.tooCloseCount === "number") {
-      parts.push(`Times too close to screen: ${record.tooCloseCount}`);
-    }
-
-    let text = "Not provided.";
-    try {
-      text = JSON.stringify(summary, null, 2);
-    } catch {
-      text = "Summary provided but could not be stringified.";
-    }
-
-    return { text, parts };
-  }
-
-  return { text: "Not provided.", parts: [] };
+  const lower = trimmed.toLowerCase();
+  return lower.startsWith("<!doctype html") || lower.startsWith("<html");
 }
 
-function buildFallback(question: string, summary: unknown): string {
-  const { text: summaryText, parts } = formatSummary(summary);
-  const summaryLine = parts.length
-    ? parts.join(" | ")
-    : `Summary: ${summaryText}`;
-
+function buildFallback(question: string): string {
   return [
-    "What is happening:",
-    `You asked: ${question}`,
-    summaryLine,
+    "I can answer general questions, but the local model is currently unavailable.",
     "",
-    "3 actionable fixes:",
-    "1) Sit with back supported; keep ears over shoulders; feet flat or on a footrest.",
-    "2) Raise screen so top third is at eye height; keep it at arm's length (or add zoom if too close).",
-    "3) Set a 25/5 timer (25 minutes focused, 5 minutes posture check + stretch).",
+    `Your question: ${question}`,
     "",
-    "2-week improvement plan:",
-    "Week 1: Daily 3x one-minute shoulder rolls + chin tucks; adjust chair/screen each morning; track posture score once per day.",
-    "Week 2: Add mid-day standing break; practice neutral spine during typing; aim for two posture checks per work block and reduce too-close events.",
+    "Try again in a few seconds. If this keeps happening, verify Ollama is running and reachable.",
   ].join("\n");
 }
 
@@ -99,23 +63,21 @@ async function callLocalModel(userMessage: string) {
   };
 
   const content = data?.message?.content;
-  if (typeof content === "string" && content.trim().length > 0) {
+  if (typeof content === "string" && !isInvalidModelContent(content)) {
     return content.trim();
   }
 
-  throw new Error("Empty content from local LLM");
+  throw new Error("Invalid content from local LLM");
 }
 
 export async function POST(req: NextRequest) {
-  const { question, summary }: CoachRequestBody =
-    (await req.json().catch(() => ({}))) ?? {};
+  const { question }: CoachRequestBody = (await req.json().catch(() => ({}))) ?? {};
 
-  if (!question) {
+  if (typeof question !== "string" || !question.trim()) {
     return new Response("Missing 'question' in request body.", { status: 400 });
   }
 
-  const { text: summaryText } = formatSummary(summary);
-  const userMessage = `Question: ${question}\nSummary: ${summaryText}`;
+  const userMessage = question.trim();
 
   let aiText: string | undefined;
   try {
@@ -125,7 +87,7 @@ export async function POST(req: NextRequest) {
     aiText = undefined;
   }
 
-  const result = aiText ?? buildFallback(question, summary);
+  const result = aiText ?? buildFallback(userMessage);
 
   return new Response(result, {
     status: 200,
