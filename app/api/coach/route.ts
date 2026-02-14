@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { getEvents } from "@/lib/store/memoryStore";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,7 @@ type CoachRequestBody = {
 
 const DEFAULT_LLM_URL = "http://127.0.0.1:11434";
 const DEFAULT_LLM_MODEL = "llama3.2";
+const WEEK_SECONDS = 7 * 24 * 60 * 60;
 
 function formatSummary(summary: unknown): { text: string; parts: string[] } {
   if (typeof summary === "string") {
@@ -46,6 +48,48 @@ function formatSummary(summary: unknown): { text: string; parts: string[] } {
   }
 
   return { text: "Not provided.", parts: [] };
+}
+
+function buildHistorySummary(userId: string) {
+  const toTs = Math.floor(Date.now() / 1000);
+  const fromTs = toTs - WEEK_SECONDS;
+  const events = getEvents({ userId, fromTs, toTs });
+
+  let badPostureCount7d = 0;
+  let tooCloseCount7d = 0;
+  const dayCounts: Record<string, number> = {};
+  const activitySwitches: Record<string, number> = {};
+
+  for (const evt of events) {
+    const date = new Date(evt.ts * 1000);
+    const dayKey = `${date.getFullYear()}-${(date.getMonth() + 1)
+      .toString()
+      .padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+
+    if (evt.type === "BAD_POSTURE") {
+      badPostureCount7d += 1;
+      dayCounts[dayKey] = (dayCounts[dayKey] ?? 0) + 1;
+    } else if (evt.type === "TOO_CLOSE") {
+      tooCloseCount7d += 1;
+      dayCounts[dayKey] = (dayCounts[dayKey] ?? 0) + 1;
+    } else if (evt.type === "ACTIVITY_SET") {
+      const name =
+        typeof evt.activity === "string" && evt.activity.trim().length > 0
+          ? evt.activity
+          : "unknown";
+      activitySwitches[name] = (activitySwitches[name] ?? 0) + 1;
+    }
+  }
+
+  let topHoursOrTopDay = "none";
+  const entries = Object.entries(dayCounts);
+  if (entries.length > 0) {
+    entries.sort((a, b) => b[1] - a[1]);
+    const [day, count] = entries[0];
+    topHoursOrTopDay = `${day} (${count} events)`;
+  }
+
+  return { badPostureCount7d, tooCloseCount7d, topHoursOrTopDay, activitySwitches };
 }
 
 function buildFallback(question: string, summary: unknown): string {
@@ -114,7 +158,9 @@ export async function POST(req: NextRequest) {
     return new Response("Missing 'question' in request body.", { status: 400 });
   }
 
-  const { text: summaryText } = formatSummary(summary);
+  const summaryValue =
+    summary === undefined || summary === null ? buildHistorySummary("demo") : summary;
+  const { text: summaryText } = formatSummary(summaryValue);
   const userMessage = `Question: ${question}\nSummary: ${summaryText}`;
 
   let aiText: string | undefined;
@@ -125,7 +171,7 @@ export async function POST(req: NextRequest) {
     aiText = undefined;
   }
 
-  const result = aiText ?? buildFallback(question, summary);
+  const result = aiText ?? buildFallback(question, summaryValue);
 
   return new Response(result, {
     status: 200,
