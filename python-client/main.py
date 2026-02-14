@@ -2,12 +2,18 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import time
-import simpleaudio as sa
 import os
 import math
 
+try:
+    import simpleaudio as sa
+except Exception:
+    sa = None
+    print("simpleaudio is not installed; alert sounds are disabled.")
+
 # ---------------- SETTINGS ----------------
-sense_sound_file = "alert.wav"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sense_sound_file = os.path.join(script_dir, "alert.wav")
 alert_cooldown = 5
 calibration_target = 30
 slouch_buffer_degrees = 8
@@ -39,6 +45,8 @@ micro_movement_history = []
 last_micro_movement_alert_time = 0
 too_close_start_time = None
 last_too_close_alert_time = 0
+read_fail_count = 0
+max_read_failures = 120
 
 # ---------------- FUNCTIONS ----------------
 def calculate_angle(a, b, c):
@@ -91,18 +99,29 @@ pose = mp_pose.Pose(
 )
 
 cap = cv2.VideoCapture(0)
+if not cap.isOpened():
+    print("Camera initialization failed. Allow camera access for Terminal/IDE and try again.")
+    raise SystemExit(1)
 
 if os.path.exists(sense_sound_file):
-    try:
-        alert_wave = sa.WaveObject.from_wave_file(sense_sound_file)
-    except Exception as exc:
-        print(f"Unable to load alert sound: {exc}")
+    if sa is not None:
+        try:
+            alert_wave = sa.WaveObject.from_wave_file(sense_sound_file)
+        except Exception as exc:
+            print(f"Unable to load alert sound: {exc}")
+    else:
+        print("Alert sound skipped: simpleaudio module unavailable.")
 
 # ---------------- MAIN LOOP ----------------
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
+        read_fail_count += 1
+        if read_fail_count >= max_read_failures:
+            print("Camera frames are unavailable. Check camera permissions and active camera usage.")
+            break
         continue
+    read_fail_count = 0
 
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     results = pose.process(rgb_frame)
@@ -263,7 +282,7 @@ while cap.isOpened():
             cv2.putText(frame, too_close_status,
                         (10, 190), cv2.FONT_HERSHEY_SIMPLEX, 0.6,
                         too_close_color, 2)
-
+    # Hide the window
     cv2.imshow("Posture Corrector", frame)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):

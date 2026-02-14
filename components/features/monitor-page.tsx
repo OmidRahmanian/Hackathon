@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils/cn';
@@ -10,14 +10,114 @@ const activities = ['Studying', 'Browsing', 'Multimedia'] as const;
 export function MonitorPage() {
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
   const [isOn, setIsOn] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const handleStart = () => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadStatus = async () => {
+      try {
+        const response = await fetch('/api/monitor', { method: 'GET', cache: 'no-store' });
+        if (!response.ok) return;
+        const data = (await response.json()) as {
+          isRunning?: boolean;
+          activity?: string | null;
+          lastError?: string | null;
+        };
+
+        if (cancelled) return;
+        const running = Boolean(data.isRunning);
+        setIsOn(running);
+        if (typeof data.activity === 'string' && data.activity.length > 0) {
+          const nextActivity = data.activity;
+          setSelectedActivity((current) => {
+            if (running) return nextActivity;
+            return current ?? nextActivity;
+          });
+        }
+        setStatusMessage(data.lastError ?? null);
+      } catch {
+        if (!cancelled) {
+          setStatusMessage('Unable to load monitor status.');
+        }
+      }
+    };
+
+    void loadStatus();
+    const interval = window.setInterval(() => {
+      void loadStatus();
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const handleStart = async () => {
     if (!selectedActivity) return;
-    setIsOn(true);
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    try {
+      const response = await fetch('/api/monitor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'start',
+          activity: selectedActivity
+        })
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        isRunning?: boolean;
+        activity?: string | null;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? `Start failed (${response.status})`);
+      }
+
+      setIsOn(Boolean(data.isRunning));
+      if (data.activity) {
+        setSelectedActivity(data.activity);
+      }
+    } catch (error) {
+      setIsOn(false);
+      setStatusMessage(error instanceof Error ? error.message : 'Unable to start monitor.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleStop = () => {
-    setIsOn(false);
+  const handleStop = async () => {
+    setIsLoading(true);
+    setStatusMessage(null);
+
+    try {
+      const response = await fetch('/api/monitor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' })
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        isRunning?: boolean;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error ?? `Stop failed (${response.status})`);
+      }
+
+      setIsOn(Boolean(data.isRunning));
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : 'Unable to stop monitor.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,11 +156,11 @@ export function MonitorPage() {
       </div>
 
       <div className="mt-6 flex gap-3">
-        <Button onClick={handleStart} disabled={!selectedActivity || isOn}>
-          Start
+        <Button onClick={handleStart} disabled={!selectedActivity || isOn || isLoading}>
+          {isLoading && !isOn ? 'Starting...' : 'Start'}
         </Button>
-        <Button variant="secondary" onClick={handleStop} disabled={!isOn}>
-          Stop
+        <Button variant="secondary" onClick={handleStop} disabled={!isOn || isLoading}>
+          {isLoading && isOn ? 'Stopping...' : 'Stop'}
         </Button>
       </div>
 
@@ -78,6 +178,9 @@ export function MonitorPage() {
           <span className="font-mono text-lg font-semibold tracking-[0.18em]">{isOn ? 'ON' : 'OFF'}</span>
           <span className="font-mono text-xs uppercase tracking-[0.2em] soft-text">{selectedActivity ?? 'No mode selected'}</span>
         </div>
+        {statusMessage ? (
+          <p className="mt-3 font-mono text-xs uppercase tracking-[0.12em] text-[var(--accent-2)]">{statusMessage}</p>
+        ) : null}
       </div>
     </Card>
   );

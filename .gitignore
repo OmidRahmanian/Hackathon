@@ -1,6 +1,8 @@
 node_modules
 .next
 .venv
+python-client/.venv
+.tmp/
 .env
 .env.local
 .DS_Store
