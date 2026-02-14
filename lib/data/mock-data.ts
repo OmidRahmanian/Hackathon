@@ -20,10 +20,10 @@ export const leaderboardUsers: LeaderboardUser[] = [
 ];
 
 export const defaultReminders: ReminderItem[] = [
-  { id: 'r1', label: 'Eye rest break', enabled: true },
-  { id: 'r2', label: 'Stretch break', enabled: true },
-  { id: 'r3', label: 'Hydration reminder', enabled: false },
-  { id: 'r4', label: 'Walk reminder', enabled: false }
+  { id: 'r1', label: 'Eye rest break', enabled: true, intervalSeconds: 30 * 60 },
+  { id: 'r2', label: 'Stretch break', enabled: true, intervalSeconds: 45 * 60 },
+  { id: 'r3', label: 'Hydration reminder', enabled: false, intervalSeconds: 30 * 60 },
+  { id: 'r4', label: 'Walk reminder', enabled: false, intervalSeconds: 60 * 60 }
 ];
 
 export const aiDefaultPrompts = [
