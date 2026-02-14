@@ -1,11 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils/cn';
 
 const activities = ['Studying', 'Browsing', 'Multimedia'] as const;
+const EVENT_USER_ID = 'demo';
+const EVENT_DEBOUNCE_MS = 10_000;
+
+type MonitorEventType =
+  | 'SESSION_START'
+  | 'SESSION_STOP'
+  | 'ACTIVITY_SET'
+  | 'BAD_POSTURE'
+  | 'TOO_CLOSE';
 
 export function MonitorPage() {
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
@@ -13,6 +22,55 @@ export function MonitorPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const seenLogLinesRef = useRef<Set<string>>(new Set());
+  const lastBadPostureEventAtRef = useRef(0);
+  const lastTooCloseEventAtRef = useRef(0);
+
+  const postEvent = async (type: MonitorEventType, activity?: string | null) => {
+    try {
+      await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: EVENT_USER_ID,
+          type,
+          activity: activity ?? undefined
+        })
+      });
+    } catch (error) {
+      console.error('Event post failed:', error);
+    }
+  };
+
+  const maybePostDebouncedEvent = (type: 'BAD_POSTURE' | 'TOO_CLOSE', activity?: string | null) => {
+    const nowMs = Date.now();
+    if (type === 'BAD_POSTURE') {
+      if (nowMs - lastBadPostureEventAtRef.current < EVENT_DEBOUNCE_MS) return;
+      lastBadPostureEventAtRef.current = nowMs;
+    } else {
+      if (nowMs - lastTooCloseEventAtRef.current < EVENT_DEBOUNCE_MS) return;
+      lastTooCloseEventAtRef.current = nowMs;
+    }
+
+    void postEvent(type, activity);
+  };
+
+  const processMonitorLogs = (recentLogs: string[] | undefined, activity?: string | null) => {
+    if (!Array.isArray(recentLogs) || recentLogs.length === 0) return;
+
+    for (const line of recentLogs) {
+      if (!line || seenLogLinesRef.current.has(line)) continue;
+      seenLogLinesRef.current.add(line);
+
+      if (line.includes('Fix your posture!')) {
+        maybePostDebouncedEvent('BAD_POSTURE', activity ?? selectedActivity);
+      }
+
+      if (line.includes('Too Close to Screen!')) {
+        maybePostDebouncedEvent('TOO_CLOSE', activity ?? selectedActivity);
+      }
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -25,6 +83,7 @@ export function MonitorPage() {
           isRunning?: boolean;
           activity?: string | null;
           lastError?: string | null;
+          recentLogs?: string[];
         };
 
         if (cancelled) return;
@@ -38,6 +97,7 @@ export function MonitorPage() {
           });
         }
         setStatusMessage(data.lastError ?? null);
+        processMonitorLogs(data.recentLogs, data.activity);
       } catch {
         if (!cancelled) {
           setStatusMessage('Unable to load monitor status.');
@@ -108,6 +168,8 @@ export function MonitorPage() {
       if (data.activity) {
         setSelectedActivity(data.activity);
       }
+
+      await postEvent('SESSION_START', data.activity ?? selectedActivity);
     } catch (error) {
       setIsOn(false);
       setStatusMessage(error instanceof Error ? error.message : 'Unable to start monitor.');
@@ -137,6 +199,7 @@ export function MonitorPage() {
       }
 
       setIsOn(Boolean(data.isRunning));
+      await postEvent('SESSION_STOP', selectedActivity);
     } catch (error) {
       setStatusMessage(error instanceof Error ? error.message : 'Unable to stop monitor.');
     } finally {
@@ -169,7 +232,14 @@ export function MonitorPage() {
             <button
               key={activity}
               type="button"
-              onClick={() => setSelectedActivity(activity)}
+              onClick={() => {
+                setSelectedActivity((current) => {
+                  if (current !== activity) {
+                    void postEvent('ACTIVITY_SET', activity);
+                  }
+                  return activity;
+                });
+              }}
               className={cn(
                 'rounded-sm border px-4 py-3 font-mono text-sm font-semibold uppercase tracking-[0.12em] transition-all duration-75',
                 active

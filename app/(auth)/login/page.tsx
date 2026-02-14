@@ -15,18 +15,46 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = (event: FormEvent) => {
+  const handleLogin = async (event: FormEvent) => {
     event.preventDefault();
 
-    const ok = login(email, password);
-    if (!ok) {
+    if (!email.trim() || !password.trim()) {
       setStatus('Enter both email and password.');
       return;
     }
 
+    setIsLoading(true);
     setStatus('');
-    router.replace('/dashboard');
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Login failed (${response.status})`);
+      }
+
+      const ok = login(email, password);
+      if (!ok) {
+        setStatus('Login state update failed.');
+        return;
+      }
+
+      router.replace('/dashboard');
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Unable to login.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleGoogleSignIn = () => {
@@ -53,8 +81,8 @@ export default function LoginPage() {
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Enter password"
           />
-          <Button type="submit" className="w-full">
-            Sign in
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
 

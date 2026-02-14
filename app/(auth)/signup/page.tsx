@@ -13,8 +13,9 @@ export default function SignUpPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [status, setStatus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignUp = (event: FormEvent) => {
+  const handleSignUp = async (event: FormEvent) => {
     event.preventDefault();
 
     if (!email || !password || !confirmPassword) {
@@ -27,8 +28,31 @@ export default function SignUpPage() {
       return;
     }
 
-    setStatus('Account created. Redirecting to login...');
-    setTimeout(() => router.replace('/login'), 700);
+    setIsLoading(true);
+    setStatus('');
+
+    try {
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Sign up failed (${response.status})`);
+      }
+
+      setStatus('Account created. Redirecting to login...');
+      setTimeout(() => router.replace('/login'), 700);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : 'Unable to create account.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,8 +80,8 @@ export default function SignUpPage() {
             onChange={(event) => setConfirmPassword(event.target.value)}
             placeholder="Confirm password"
           />
-          <Button type="submit" className="w-full">
-            Create account
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? 'Creating...' : 'Create account'}
           </Button>
         </form>
 
