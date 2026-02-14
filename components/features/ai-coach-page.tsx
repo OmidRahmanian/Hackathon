@@ -2,7 +2,7 @@
 
 import { FormEvent, useMemo, useState } from 'react';
 import { Bot, Sparkles } from 'lucide-react';
-import { aiDefaultPrompts } from '@/lib/data/mock-data';
+import { aiDefaultPrompts, initialStats } from '@/lib/data/mock-data';
 import { ChatMessage } from '@/types/app';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -18,6 +18,26 @@ export function AICoachPage() {
       'I can answer posture, productivity, and desk setup questions. For medical pain, consult a clinician.',
     []
   );
+  const coachSummary = useMemo(() => {
+    const averageScore = Math.max(
+      0,
+      Math.round(
+        100 -
+          initialStats.badPostureTimeline.reduce((sum, value) => sum + value, 0) /
+            initialStats.badPostureTimeline.length
+      )
+    );
+
+    const topActivity = [...initialStats.activities].sort((a, b) => b.hours - a.hours)[0];
+
+    return {
+      worstPostureType: 'Slouching',
+      averageScore,
+      timeframe: initialStats.timeframeLabel,
+      badPostureCount: initialStats.badPostureCount,
+      topActivity: topActivity ? `${topActivity.name} (${topActivity.hours}h)` : 'N/A'
+    };
+  }, []);
 
   const onAsk = async (event: FormEvent) => {
     event.preventDefault();
@@ -29,15 +49,40 @@ export function AICoachPage() {
     setInput('');
     setLoading(true);
 
-    setTimeout(() => {
-      const response: ChatMessage = {
+    try {
+      const response = await fetch('/api/coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: text,
+          summary: coachSummary
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Coach API failed (${response.status})`);
+      }
+
+      const answer = (await response.text()).trim();
+      const assistantMessage: ChatMessage = {
         id: `${Date.now()}-a`,
         role: 'assistant',
-        text: `Action plan for "${text}": keep chin neutral, shoulders relaxed, and take a 2-minute eye break every 30 minutes.`
+        text:
+          answer ||
+          `I could not generate a response for "${text}" right now. Please try again.`
       };
-      setMessages((prev) => [...prev, response]);
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch {
+      const assistantMessage: ChatMessage = {
+        id: `${Date.now()}-a`,
+        role: 'assistant',
+        text:
+          'Could not reach the local AI coach. Make sure Ollama and the coach API are running, then try again.'
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   return (
@@ -70,7 +115,7 @@ export function AICoachPage() {
               className={`rounded-sm px-3 py-2 text-sm ${
                 message.role === 'user'
                   ? 'ml-10 border border-[var(--accent)] bg-[var(--accent)] font-mono text-black'
-                  : 'mr-10 border border-white/10 bg-black/50'
+                  : 'mr-10 whitespace-pre-wrap border border-white/10 bg-black/50'
               }`}
             >
               {message.role === 'assistant' ? (

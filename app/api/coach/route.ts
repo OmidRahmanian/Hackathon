@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
 
 const SYSTEM_PROMPT = `You are a supportive posture and ergonomics coach. Keep the tone encouraging and practical. Never give medical diagnoses or claim to treat conditions. Always return three sections in order:
 1) What is happening
@@ -120,7 +120,8 @@ export async function POST(req: NextRequest) {
   let aiText: string | undefined;
   try {
     aiText = await callLocalModel(userMessage);
-  } catch {
+  } catch (error) {
+    console.error("Coach local model call failed:", error);
     aiText = undefined;
   }
 
