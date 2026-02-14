@@ -15,7 +15,7 @@ import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLiveStats } from '@/hooks/use-live-stats';
-import { achievements, leaderboardUsers } from '@/lib/data/mock-data';
+import { achievements } from '@/lib/data/mock-data';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
@@ -62,10 +62,14 @@ function getCurrentHourTrendLabels(now: Date) {
 }
 
 export function StatsDashboard() {
-  const { stats } = useLiveStats();
+  const { stats, loading: statsLoading, error: statsError } = useLiveStats();
   const [shareOpen, setShareOpen] = useState(false);
-  const [timeRangeLabel, setTimeRangeLabel] = useState(stats.timeframeLabel);
-  const [trendLabels, setTrendLabels] = useState(stats.timelineLabels);
+  const [timeRangeLabel, setTimeRangeLabel] = useState(getCurrentHourRangeLabel(new Date()));
+  const [trendLabels, setTrendLabels] = useState(getCurrentHourTrendLabels(new Date()));
+  const [leaderboardUsers, setLeaderboardUsers] = useState<
+    { name: string; streakDays: number; score: number }[]
+  >([]);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   useEffect(() => {
     const updateLabel = () => {
@@ -79,20 +83,88 @@ export function StatsDashboard() {
     return () => window.clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadLeaderboard = async () => {
+      try {
+        setLeaderboardError(null);
+        const response = await fetch('/api/leaderboard', {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Leaderboard API failed (${response.status})`);
+        }
+
+        const data = (await response.json()) as {
+          entries?: { name?: string; streakDays?: number; score?: number }[];
+        };
+
+        if (cancelled) return;
+
+        const entries = Array.isArray(data.entries)
+          ? data.entries.map((entry) => ({
+              name: entry.name ?? 'Unknown',
+              streakDays: Number(entry.streakDays ?? 0),
+              score: Number(entry.score ?? 0)
+            }))
+          : [];
+
+        setLeaderboardUsers(entries);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Leaderboard fetch failed:', error);
+        setLeaderboardError('Unable to load leaderboard.');
+        setLeaderboardUsers([]);
+      }
+    };
+
+    void loadLeaderboard();
+    const interval = window.setInterval(() => {
+      void loadLeaderboard();
+    }, 30_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const badPostureTimeline = useMemo(() => {
+    const points = trendLabels.length;
+    if (points === 0) return [];
+    return Array.from({ length: points }, (_, index) => {
+      const ratio = (index + 1) / points;
+      return Math.round(stats.badPostureCount * ratio);
+    });
+  }, [stats.badPostureCount, trendLabels]);
+
+  const activityRows = useMemo(
+    () =>
+      Object.entries(stats.activityBreakdown).map(([name, count], index) => ({
+        id: `${name}-${index}`,
+        name,
+        hours: count
+      })),
+    [stats.activityBreakdown]
+  );
+
   const chartData = useMemo(
     () => ({
       labels: trendLabels,
       datasets: [
         {
           label: 'Bad posture count',
-          data: stats.badPostureTimeline,
+          data: badPostureTimeline,
           borderColor: '#ffb000',
           backgroundColor: 'rgba(255, 176, 0, 0.15)',
           tension: 0.2
         }
       ]
     }),
-    [stats, trendLabels]
+    [badPostureTimeline, trendLabels]
   );
 
   const chartOptions = {
@@ -130,6 +202,8 @@ export function StatsDashboard() {
               <motion.p key={stats.badPostureCount} initial={{ scale: 1.08 }} animate={{ scale: 1 }} className="mt-1 font-mono text-3xl font-bold text-[var(--accent-3)]">
                 {stats.badPostureCount}
               </motion.p>
+              {statsLoading ? <p className="mt-1 text-xs soft-text">Loading...</p> : null}
+              {statsError ? <p className="mt-1 text-xs text-[var(--accent-2)]">{statsError}</p> : null}
             </div>
           </div>
         </Card>
@@ -161,12 +235,18 @@ export function StatsDashboard() {
         <Card>
           <h3 className="text-lg font-semibold">Activity Hours</h3>
           <div className="mt-3 space-y-3">
-            {stats.activities.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
-                <span className="font-mono uppercase tracking-[0.12em]">{activity.name}</span>
-                <span className="font-mono font-semibold">{activity.hours} hr</span>
+            {activityRows.length > 0 ? (
+              activityRows.map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
+                  <span className="font-mono uppercase tracking-[0.12em]">{activity.name}</span>
+                  <span className="font-mono font-semibold">{activity.hours} hr</span>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-sm border border-white/10 bg-black/45 px-4 py-3 text-sm soft-text">
+                No activity data yet.
               </div>
-            ))}
+            )}
           </div>
         </Card>
 
@@ -174,18 +254,23 @@ export function StatsDashboard() {
           <h3 className="text-lg font-semibold">Friends Leaderboard</h3>
           <div className="mt-3 space-y-3">
             {leaderboardUsers.map((user, index) => (
-              <div key={user.id} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
+              <div key={`${user.name}-${index}`} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
                 <div className="flex items-center gap-3">
                   <span className="w-4 font-mono text-sm soft-text">{index + 1}</span>
-                  <Image src={user.avatar} alt={user.name} width={36} height={36} className="rounded-full" />
+                  <Image src={`/avatar-${(index % 4) + 1}.svg`} alt={user.name} width={36} height={36} className="rounded-full" />
                   <span className="font-mono uppercase tracking-[0.08em]">{user.name}</span>
                 </div>
                 <div className="flex items-center gap-1 font-mono font-semibold">
-                  <span>{user.streak}</span>
+                  <span>{user.streakDays}</span>
                   <Flame className="h-4 w-4 text-[var(--accent-2)]" />
                 </div>
               </div>
             ))}
+            {leaderboardUsers.length === 0 ? (
+              <div className="rounded-sm border border-white/10 bg-black/45 px-4 py-3 text-sm soft-text">
+                {leaderboardError ?? 'No leaderboard data yet.'}
+              </div>
+            ) : null}
           </div>
         </Card>
       </div>
