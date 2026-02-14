@@ -53,7 +53,21 @@ export async function POST(req: NextRequest) {
     return new Response("Failed to persist event.", { status: 500 });
   }
 
-  return Response.json({ ok: true, event: { ...stored, type } });
+  const eventResponse = {
+    id: stored.history_id ?? stored.id,
+    userId,
+    type,
+    ts,
+    activity,
+    // Additional DB-backed fields for observability while keeping shape stable.
+    bad_pos: stored.bad_pos ?? 0,
+    score: stored.score ?? 0,
+    start_date: stored.start_date,
+    end_date: stored.end_date,
+    topic: stored.topic,
+  };
+
+  return Response.json({ ok: true, event: eventResponse });
 }
 
 export async function GET() {

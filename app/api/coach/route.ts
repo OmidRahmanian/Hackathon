@@ -66,14 +66,12 @@ async function buildHistorySummary(userId: string) {
   const [history, streak, advice] = await Promise.all([
     getUserHistory(userId, fromTs, toTs),
     getUserStreak(userId),
-    getAdvice(userId),
+    getAdvice(),
   ]);
 
   const bad_posture = history.reduce((sum, row) => sum + (row.bad_pos ?? 0), 0);
-  const score =
-    history.length > 0
-      ? history.reduce((sum, row) => sum + (row.score ?? 0), 0) / history.length
-      : 0;
+  const totalScore = history.reduce((sum, row) => sum + (row.score ?? 0), 0);
+  const score = history.length > 0 ? totalScore / history.length : 0;
 
   const recent_topics = history
     .map((row) => row.topic)
@@ -83,16 +81,16 @@ async function buildHistorySummary(userId: string) {
 
   const streakSummary = streak
     ? {
-        active: streak.streak_fl,
+        strict_count: streak.strict_count,
         score: streak.score,
-        start: streak.start_date,
-        end: streak.end_date,
+        streak_id: streak.streak_id,
       }
-    : { active: false, score: 0 };
+    : null;
 
   const adviceSnippets = advice.slice(0, 3).map((a) => ({
-    topic: a.topic,
     explain: a.explain,
+    start_date: a.start_date,
+    end_date: a.end_date,
   }));
 
   return {
