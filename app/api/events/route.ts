@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { addEvent, type EventType } from "@/lib/store/memoryStore";
+import { insertHistoryEvent, type EventType } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -36,22 +36,24 @@ export async function POST(req: NextRequest) {
     typeof body.activity === "string" && body.activity.trim().length > 0
       ? body.activity
       : undefined;
-  const meta =
-    body.meta && typeof body.meta === "object" ? (body.meta as Record<string, unknown>) : undefined;
 
   if (!isEventType(type)) {
     return new Response('Invalid or missing "type".', { status: 400 });
   }
 
-  const stored = addEvent({
+  // TODO: map meta into HISTORY fields when schema is finalized.
+  const stored = await insertHistoryEvent({
     userId,
     type,
     ts,
     activity,
-    meta,
   });
 
-  return Response.json({ ok: true, event: stored });
+  if (!stored) {
+    return new Response("Failed to persist event.", { status: 500 });
+  }
+
+  return Response.json({ ok: true, event: { ...stored, type } });
 }
 
 export async function GET() {

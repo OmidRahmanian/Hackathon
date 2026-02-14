@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getEvents } from "@/lib/store/memoryStore";
+import { getAdvice, getUserHistory, getUserStreak } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -27,6 +27,15 @@ function formatSummary(summary: unknown): { text: string; parts: string[] } {
     const parts: string[] = [];
     const record = summary as Record<string, unknown>;
 
+    if (typeof record.bad_posture === "number") {
+      parts.push(`Bad posture (7d): ${record.bad_posture}`);
+    }
+    if (typeof record.score === "number") {
+      parts.push(`Average score: ${record.score}`);
+    }
+    if (typeof record.streak === "object" && record.streak) {
+      parts.push("Streak info included");
+    }
     if (typeof record.worstPostureType === "string") {
       parts.push(`Most frequent issue: ${record.worstPostureType}`);
     }
@@ -50,46 +59,49 @@ function formatSummary(summary: unknown): { text: string; parts: string[] } {
   return { text: "Not provided.", parts: [] };
 }
 
-function buildHistorySummary(userId: string) {
+async function buildHistorySummary(userId: string) {
   const toTs = Math.floor(Date.now() / 1000);
   const fromTs = toTs - WEEK_SECONDS;
-  const events = getEvents({ userId, fromTs, toTs });
 
-  let badPostureCount7d = 0;
-  let tooCloseCount7d = 0;
-  const dayCounts: Record<string, number> = {};
-  const activitySwitches: Record<string, number> = {};
+  const [history, streak, advice] = await Promise.all([
+    getUserHistory(userId, fromTs, toTs),
+    getUserStreak(userId),
+    getAdvice(userId),
+  ]);
 
-  for (const evt of events) {
-    const date = new Date(evt.ts * 1000);
-    const dayKey = `${date.getFullYear()}-${(date.getMonth() + 1)
-      .toString()
-      .padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+  const bad_posture = history.reduce((sum, row) => sum + (row.bad_pos ?? 0), 0);
+  const score =
+    history.length > 0
+      ? history.reduce((sum, row) => sum + (row.score ?? 0), 0) / history.length
+      : 0;
 
-    if (evt.type === "BAD_POSTURE") {
-      badPostureCount7d += 1;
-      dayCounts[dayKey] = (dayCounts[dayKey] ?? 0) + 1;
-    } else if (evt.type === "TOO_CLOSE") {
-      tooCloseCount7d += 1;
-      dayCounts[dayKey] = (dayCounts[dayKey] ?? 0) + 1;
-    } else if (evt.type === "ACTIVITY_SET") {
-      const name =
-        typeof evt.activity === "string" && evt.activity.trim().length > 0
-          ? evt.activity
-          : "unknown";
-      activitySwitches[name] = (activitySwitches[name] ?? 0) + 1;
-    }
-  }
+  const recent_topics = history
+    .map((row) => row.topic)
+    .filter((t): t is string => !!t)
+    .slice(-5)
+    .reverse();
 
-  let topHoursOrTopDay = "none";
-  const entries = Object.entries(dayCounts);
-  if (entries.length > 0) {
-    entries.sort((a, b) => b[1] - a[1]);
-    const [day, count] = entries[0];
-    topHoursOrTopDay = `${day} (${count} events)`;
-  }
+  const streakSummary = streak
+    ? {
+        active: streak.streak_fl,
+        score: streak.score,
+        start: streak.start_date,
+        end: streak.end_date,
+      }
+    : { active: false, score: 0 };
 
-  return { badPostureCount7d, tooCloseCount7d, topHoursOrTopDay, activitySwitches };
+  const adviceSnippets = advice.slice(0, 3).map((a) => ({
+    topic: a.topic,
+    explain: a.explain,
+  }));
+
+  return {
+    bad_posture,
+    score,
+    streak: streakSummary,
+    recent_topics,
+    advice: adviceSnippets, // extra context for the LLM
+  };
 }
 
 function buildFallback(question: string, summary: unknown): string {
@@ -159,7 +171,7 @@ export async function POST(req: NextRequest) {
   }
 
   const summaryValue =
-    summary === undefined || summary === null ? buildHistorySummary("demo") : summary;
+    summary === undefined || summary === null ? await buildHistorySummary("demo") : summary;
   const { text: summaryText } = formatSummary(summaryValue);
   const userMessage = `Question: ${question}\nSummary: ${summaryText}`;
 
