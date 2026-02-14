@@ -12,6 +12,7 @@ export function MonitorPage() {
   const [isOn, setIsOn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     let cancelled = false;
@@ -54,6 +55,29 @@ export function MonitorPage() {
       window.clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const timeLabel = now.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true
+  });
+  const dateLabel = now.toLocaleDateString([], {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 
   const handleStart = async () => {
     if (!selectedActivity) return;
@@ -125,12 +149,16 @@ export function MonitorPage() {
       <div className="relative">
         <div className="pointer-events-none absolute -top-16 right-0 h-40 w-40 rounded-full bg-[var(--accent)]/15 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-14 left-8 h-36 w-36 rounded-full bg-[var(--accent-3)]/15 blur-3xl" />
-        <div className="relative">
+        <div className="relative sm:pr-44">
           <p className="inline-flex rounded-sm border border-white/20 bg-black/70 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#666]">
             Monitoring Control
           </p>
           <h1 className="mt-3 text-3xl font-semibold text-[#eee]">Live Monitoring</h1>
           <p className="mt-1 text-sm soft-text">Pick one activity mode, then start or stop tracking.</p>
+          <div className="absolute right-0 top-0 rounded-sm border border-white/10 bg-black/55 px-3 py-2 text-right">
+            <p className="font-mono text-sm font-semibold tracking-[0.08em] text-[#eee]">{timeLabel}</p>
+            <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] soft-text">{dateLabel}</p>
+          </div>
         </div>
       </div>
 

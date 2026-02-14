@@ -12,7 +12,7 @@ import {
 import { Line } from 'react-chartjs-2';
 import { Flame, Share2 } from 'lucide-react';
 import Image from 'next/image';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useLiveStats } from '@/hooks/use-live-stats';
 import { achievements, leaderboardUsers } from '@/lib/data/mock-data';
@@ -22,13 +22,66 @@ import { Modal } from '@/components/ui/modal';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
+function formatHourLabel(date: Date) {
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    hour12: true
+  });
+}
+
+function formatMinuteLabel(date: Date) {
+  return date.toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+function getCurrentHourRangeLabel(now: Date) {
+  const start = new Date(now);
+  start.setMinutes(0, 0, 0);
+
+  const end = new Date(start);
+  end.setHours(end.getHours() + 1);
+
+  return `${formatHourLabel(start)} - ${formatHourLabel(end)}`;
+}
+
+function getCurrentHourTrendLabels(now: Date) {
+  const start = new Date(now);
+  start.setMinutes(0, 0, 0);
+
+  const labels: string[] = [];
+  for (let minute = 0; minute <= 60; minute += 10) {
+    const point = new Date(start);
+    point.setMinutes(minute);
+    labels.push(formatMinuteLabel(point));
+  }
+
+  return labels;
+}
+
 export function StatsDashboard() {
   const { stats } = useLiveStats();
   const [shareOpen, setShareOpen] = useState(false);
+  const [timeRangeLabel, setTimeRangeLabel] = useState(stats.timeframeLabel);
+  const [trendLabels, setTrendLabels] = useState(stats.timelineLabels);
+
+  useEffect(() => {
+    const updateLabel = () => {
+      const now = new Date();
+      setTimeRangeLabel(getCurrentHourRangeLabel(now));
+      setTrendLabels(getCurrentHourTrendLabels(now));
+    };
+
+    updateLabel();
+    const interval = window.setInterval(updateLabel, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
 
   const chartData = useMemo(
     () => ({
-      labels: stats.timelineLabels,
+      labels: trendLabels,
       datasets: [
         {
           label: 'Bad posture count',
@@ -39,7 +92,7 @@ export function StatsDashboard() {
         }
       ]
     }),
-    [stats]
+    [stats, trendLabels]
   );
 
   const chartOptions = {
@@ -70,7 +123,7 @@ export function StatsDashboard() {
       <div className="grid gap-5 md:grid-cols-2">
         <Card>
           <p className="text-sm soft-text">Time Range</p>
-          <h2 className="mt-1 font-mono text-xl font-semibold">{stats.timeframeLabel}</h2>
+          <h2 className="mt-1 font-mono text-xl font-semibold">{timeRangeLabel}</h2>
           <div className="mt-4 grid grid-cols-1 gap-3">
             <div className="rounded-sm border border-white/10 bg-black/45 p-4">
               <p className="text-sm soft-text">Bad posture events</p>
