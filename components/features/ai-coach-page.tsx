@@ -1,7 +1,7 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
-import { Bot, Sparkles } from 'lucide-react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowDown, Bot, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ChatMessage } from '@/types/app';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,42 @@ export function AICoachPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showRecommendationScrollButton, setShowRecommendationScrollButton] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const recommendationContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const updateScrollButton = () => {
+      const overflow = container.scrollHeight > container.clientHeight + 8;
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      setShowScrollButton(overflow && distanceFromBottom > 36);
+    };
+
+    updateScrollButton();
+    container.addEventListener('scroll', updateScrollButton);
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateScrollButton) : null;
+    resizeObserver?.observe(container);
+
+    const rafId = window.requestAnimationFrame(updateScrollButton);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      container.removeEventListener('scroll', updateScrollButton);
+      resizeObserver?.disconnect();
+    };
+  }, [messages, loading]);
+
+  const scrollToLatest = () => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  };
 
   const helperText = 'Ask any question. The coach is not limited to posture topics.';
 
@@ -40,6 +76,40 @@ export function AICoachPage() {
     const suffix = lastUserMessage.length > 120 ? '...' : '';
     return `Based on your latest prompt ("${promptPreview}${suffix}"), focus on one practical change for your next session, keep your setup ergonomic, and re-check posture every 25 minutes. Use this as your single action plan for the current cycle.`;
   }, [lastUserMessage]);
+
+  useEffect(() => {
+    const container = recommendationContainerRef.current;
+    if (!container) return;
+
+    const updateRecommendationScrollButton = () => {
+      const overflow = container.scrollHeight > container.clientHeight + 8;
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      setShowRecommendationScrollButton(overflow && distanceFromBottom > 36);
+    };
+
+    updateRecommendationScrollButton();
+    container.addEventListener('scroll', updateRecommendationScrollButton);
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(updateRecommendationScrollButton)
+        : null;
+    resizeObserver?.observe(container);
+
+    const rafId = window.requestAnimationFrame(updateRecommendationScrollButton);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      container.removeEventListener('scroll', updateRecommendationScrollButton);
+      resizeObserver?.disconnect();
+    };
+  }, [recommendationText]);
+
+  const scrollRecommendationToLatest = () => {
+    const container = recommendationContainerRef.current;
+    if (!container) return;
+    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+  };
 
   const onAsk = async (event: FormEvent) => {
     event.preventDefault();
@@ -119,35 +189,47 @@ export function AICoachPage() {
                 <h1 className="hud-title text-xl">Ask Me Anything</h1>
               </div>
 
-              <div className="flex-1 space-y-3 overflow-y-auto pr-1">
-                {messages.length === 0 ? (
-                  <div className="rounded-sm border border-dashed border-white/15 bg-black/35 p-4">
-                    <p className="text-xs soft-text">No messages yet</p>
-                    <p className="mt-2 text-sm text-[var(--text)]">
-                      Ask your first question to start a conversation with the coach.
-                    </p>
-                  </div>
-                ) : null}
+              <div className="relative flex-1">
+                <div ref={messagesContainerRef} className="h-full space-y-3 overflow-y-auto pr-1">
+                  {messages.length === 0 ? (
+                    <div className="rounded-sm border border-dashed border-white/15 bg-black/35 p-4">
+                      <p className="text-xs soft-text">No messages yet</p>
+                      <p className="mt-2 text-sm text-[var(--text)]">
+                        Ask your first question to start a conversation with the coach.
+                      </p>
+                    </div>
+                  ) : null}
 
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`rounded-sm px-3 py-2 text-sm ${
-                      message.role === 'user'
-                        ? 'ml-10 border border-[var(--accent)] bg-[var(--accent)] font-mono text-black'
-                        : 'mr-10 whitespace-pre-wrap border border-white/10 bg-black/50 text-[var(--text)]'
-                    }`}
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`rounded-sm px-3 py-2 text-sm ${
+                        message.role === 'user'
+                          ? 'ml-10 border border-[var(--accent)] bg-[var(--accent)] font-mono text-black'
+                          : 'mr-10 whitespace-pre-wrap border border-white/10 bg-black/50 text-[var(--text)]'
+                      }`}
+                    >
+                      {message.role === 'assistant' ? (
+                        <div className="mb-1 flex items-center gap-1 text-xs soft-text">
+                          <Bot className="h-3 w-3" /> Coach
+                        </div>
+                      ) : null}
+                      {message.text}
+                    </div>
+                  ))}
+
+                  {loading ? <div className="text-sm soft-text">AI is thinking...</div> : null}
+                </div>
+
+                {showScrollButton ? (
+                  <button
+                    type="button"
+                    onClick={scrollToLatest}
+                    className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-sm border border-[var(--accent)]/70 bg-black/85 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)] transition hover:shadow-[0_0_12px_rgba(0,255,65,0.28)]"
                   >
-                    {message.role === 'assistant' ? (
-                      <div className="mb-1 flex items-center gap-1 text-xs soft-text">
-                        <Bot className="h-3 w-3" /> Coach
-                      </div>
-                    ) : null}
-                    {message.text}
-                  </div>
-                ))}
-
-                {loading ? <div className="text-sm soft-text">AI is thinking...</div> : null}
+                    <ArrowDown className="h-3 w-3" /> Scroll
+                  </button>
+                ) : null}
               </div>
 
               <form onSubmit={onAsk} className="mt-4 flex gap-2">
@@ -182,8 +264,23 @@ export function AICoachPage() {
               </div>
               <p className="mt-1 soft-text">Smart guidance to help structure better work sessions.</p>
 
-              <div className="mt-5 flex-1 rounded-sm border border-white/10 bg-black/45 p-6">
-                <p className="text-sm leading-relaxed text-[var(--text)]">{recommendationText}</p>
+              <div className="relative mt-5 flex-1">
+                <div
+                  ref={recommendationContainerRef}
+                  className="h-full overflow-y-auto rounded-sm border border-white/10 bg-black/45 p-6 pr-8"
+                >
+                  <p className="text-sm leading-relaxed text-[var(--text)]">{recommendationText}</p>
+                </div>
+
+                {showRecommendationScrollButton ? (
+                  <button
+                    type="button"
+                    onClick={scrollRecommendationToLatest}
+                    className="absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-sm border border-[var(--accent)]/70 bg-black/85 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--accent)] transition hover:shadow-[0_0_12px_rgba(0,255,65,0.28)]"
+                  >
+                    <ArrowDown className="h-3 w-3" /> Scroll
+                  </button>
+                ) : null}
               </div>
             </div>
           </Card>

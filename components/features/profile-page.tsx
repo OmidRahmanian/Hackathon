@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { LogOut, UserPlus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -288,89 +289,141 @@ export function ProfilePage() {
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-      <Card className="tech-card">
-        <div className="flex items-center justify-between gap-2">
-          <h1 className="hud-title text-xl">Profile</h1>
-          <Button variant="secondary" onClick={onSignOut} disabled={isProfileSaving}>
-            <LogOut className="mr-2 h-4 w-4" /> Sign Out
-          </Button>
-        </div>
-        <p className="mt-1 text-xs soft-text">Connected account: {activeEmail}</p>
-        <div className="mt-4 flex items-center gap-4">
-          <Image src={avatarSrc} alt="Profile avatar" width={80} height={80} className="rounded-sm border border-white/15 object-cover" />
-          <div className="flex-1 space-y-2">
-            <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" />
-            <Input value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Bio" />
-            <Input type="file" accept="image/*" onChange={onImageChange} />
-            <Button onClick={saveProfile} disabled={isProfileSaving}>
-              {isProfileSaving ? 'Saving...' : 'Save Profile'}
-            </Button>
-            <Input
-              type="password"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              placeholder="Current password"
-            />
-            <Input
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="New password"
-            />
-            <Button onClick={changePassword} disabled={isPasswordSaving}>
-              {isPasswordSaving ? 'Updating...' : 'Change Password'}
-            </Button>
-          </div>
-        </div>
-        {profileStatus ? <p className="mt-3 text-sm soft-text">{profileStatus}</p> : null}
-        {passwordStatus ? <p className="mt-2 text-sm soft-text">{passwordStatus}</p> : null}
-      </Card>
+    <div className="relative profile-glow-slow xl:h-[calc(100dvh-9rem)] xl:overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -left-20 top-10 h-56 w-56 rounded-full bg-[var(--accent)]/10 blur-3xl" />
+        <div className="absolute -right-16 bottom-4 h-64 w-64 rounded-full bg-[var(--accent-3)]/10 blur-3xl" />
+      </div>
 
-      <Card className="tech-card">
-        <div className="flex items-center gap-2">
-          <UserPlus className="h-5 w-5 text-[var(--accent)]" />
-          <h2 className="hud-title text-lg">Add Friend</h2>
-        </div>
+      <div className="relative grid h-full gap-5 lg:grid-cols-2">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: 'easeOut' }}
+          className="h-full"
+        >
+          <Card className="tech-card relative h-full overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 opacity-40">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(0,255,65,0.09),transparent_45%)]" />
+              <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_15px,rgba(255,255,255,0.03)_16px)]" />
+            </div>
 
-        <form onSubmit={addFriend} className="mt-4 space-y-3">
-          <Input
-            type="text"
-            value={friendInput}
-            onChange={(event) => setFriendInput(event.target.value)}
-            placeholder="Enter friend username or email"
-          />
-          <Button type="submit" disabled={isFriendSaving}>
-            {isFriendSaving ? 'Saving...' : 'Send Friend Request'}
-          </Button>
-        </form>
-
-        {friendStatus ? <p className="mt-3 text-sm soft-text">{friendStatus}</p> : null}
-
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-mono uppercase tracking-[0.16em] text-[var(--text-soft)]">
-            Your friends
-          </p>
-          {friends.length > 0 ? (
-            friends.map((friend) => (
-              <div
-                key={`${friend.id}-${friend.username}`}
-                className="rounded-sm border border-white/10 bg-black/45 px-3 py-2"
-              >
-                <p className="font-mono text-sm uppercase tracking-[0.08em] text-[var(--text)]">
-                  {friend.displayName}
-                </p>
-                <p className="text-xs soft-text">
-                  @{friend.username}
-                  {friend.email ? ` • ${friend.email}` : ''}
-                </p>
+            <div className="relative flex h-full min-h-0 flex-col gap-4 lg:gap-5">
+              <div className="flex items-center justify-between gap-2">
+                <h1 className="hud-title text-2xl">Profile</h1>
+                <Button variant="secondary" onClick={onSignOut} disabled={isProfileSaving}>
+                  <LogOut className="mr-2 h-4 w-4" /> Sign Out
+                </Button>
               </div>
-            ))
-          ) : (
-            <p className="text-sm soft-text">No friends added yet.</p>
-          )}
-        </div>
-      </Card>
+
+              <p className="text-xs font-mono uppercase tracking-[0.14em] text-[var(--text-soft)]">
+                Connected account: {activeEmail}
+              </p>
+
+              <div className="flex justify-center py-1">
+                <Image
+                  src={avatarSrc}
+                  alt="Profile avatar"
+                  width={112}
+                  height={112}
+                  className="rounded-sm border border-white/15 object-cover shadow-[0_0_18px_rgba(0,255,65,0.12)]"
+                />
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+                <div className="space-y-3">
+                  <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" />
+                  <Input value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Bio" />
+                  <Input type="file" accept="image/*" onChange={onImageChange} />
+                  <Button className="w-full" onClick={saveProfile} disabled={isProfileSaving}>
+                    {isProfileSaving ? 'Saving...' : 'Save Profile'}
+                  </Button>
+                  <Input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    placeholder="Current password"
+                  />
+                  <Input
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    placeholder="New password"
+                  />
+                  <Button className="w-full" onClick={changePassword} disabled={isPasswordSaving}>
+                    {isPasswordSaving ? 'Updating...' : 'Change Password'}
+                  </Button>
+                </div>
+
+                {profileStatus ? <p className="mt-3 text-sm soft-text">{profileStatus}</p> : null}
+                {passwordStatus ? <p className="mt-2 text-sm soft-text">{passwordStatus}</p> : null}
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28, ease: 'easeOut', delay: 0.06 }}
+          className="h-full"
+        >
+          <Card className="tech-card relative h-full overflow-hidden">
+            <div className="pointer-events-none absolute inset-0 opacity-40">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(0,255,65,0.09),transparent_45%)]" />
+              <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_15px,rgba(255,255,255,0.03)_16px)]" />
+            </div>
+
+            <div className="relative flex h-full min-h-0 flex-col">
+              <div className="flex items-center justify-center gap-2">
+                <UserPlus className="h-5 w-5 text-[var(--accent)]" />
+                <h2 className="hud-title text-xl">Add Friend</h2>
+              </div>
+
+              <form onSubmit={addFriend} className="mt-4 space-y-3">
+                <Input
+                  type="text"
+                  value={friendInput}
+                  onChange={(event) => setFriendInput(event.target.value)}
+                  placeholder="Enter friend username or email"
+                />
+                <Button className="w-full" type="submit" disabled={isFriendSaving}>
+                  {isFriendSaving ? 'Saving...' : 'Send Friend Request'}
+                </Button>
+              </form>
+
+              {friendStatus ? <p className="mt-3 text-sm soft-text">{friendStatus}</p> : null}
+
+              <div className="mt-4 flex-1 min-h-0 overflow-y-auto pr-1">
+                <div className="space-y-2">
+                  <p className="text-xs font-mono uppercase tracking-[0.16em] text-[var(--text-soft)]">
+                    Your friends
+                  </p>
+                  {friends.length > 0 ? (
+                    friends.map((friend) => (
+                      <div
+                        key={`${friend.id}-${friend.username}`}
+                        className="rounded-sm border border-white/10 bg-black/45 px-3 py-2"
+                      >
+                        <p className="font-mono text-sm uppercase tracking-[0.08em] text-[var(--text)]">
+                          {friend.displayName}
+                        </p>
+                        <p className="text-xs soft-text">
+                          @{friend.username}
+                          {friend.email ? ` • ${friend.email}` : ''}
+                        </p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm soft-text">No friends added yet.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
     </div>
   );
+
 }

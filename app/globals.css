@@ -85,6 +85,8 @@ a {
 .tech-card {
   position: relative;
   overflow: hidden;
+  animation: techBorderPulse 3s ease-in-out infinite;
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.16), 0 0 0 rgba(0, 255, 65, 0);
 }
 
 .tech-card::before,
@@ -173,6 +175,18 @@ a {
   animation: pageFade 160ms linear both;
 }
 
+@keyframes techBorderPulse {
+  0%,
+  100% {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.14), 0 0 0 rgba(0, 255, 65, 0);
+  }
+  50% {
+    border-color: rgba(0, 255, 65, 0.62);
+    box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.58), 0 0 18px rgba(0, 255, 65, 0.25);
+  }
+}
+
 @keyframes pageFade {
   from {
     opacity: 0;
@@ -185,7 +199,42 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .page-fade {
+  .page-fade,
+  .tech-card {
+    animation: none;
+  }
+}
+
+.dashboard-glow-slow .tech-card {
+  animation: dashboardBorderPulse 6s ease-in-out infinite;
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.1), 0 0 0 rgba(0, 255, 65, 0);
+}
+
+@keyframes dashboardBorderPulse {
+  0%,
+  100% {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.08), 0 0 0 rgba(0, 255, 65, 0);
+  }
+  50% {
+    border-color: rgba(0, 255, 65, 0.34);
+    box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.24), 0 0 9px rgba(0, 255, 65, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-glow-slow .tech-card {
+    animation: none;
+  }
+}
+
+.profile-glow-slow .tech-card {
+  animation: dashboardBorderPulse 6s ease-in-out infinite;
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 65, 0.1), 0 0 0 rgba(0, 255, 65, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-glow-slow .tech-card {
     animation: none;
   }
 }

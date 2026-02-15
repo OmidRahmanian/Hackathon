@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils/cn';
 import { useAuth } from '@/components/features/auth-provider';
 import { Activity, Clock, Power, Square, Wifi, WifiOff } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const activities = ['Studying', 'Browsing', 'Multimedia'] as const;
 const EVENT_DEBOUNCE_MS = 10_000;
@@ -11,8 +12,8 @@ const LAST_LOG_TS_STORAGE_KEY = 'postureos-monitor-last-log-ts';
 const activityIcons: Record<(typeof activities)[number], ReactNode> = {
   Studying: (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -26,8 +27,8 @@ const activityIcons: Record<(typeof activities)[number], ReactNode> = {
   ),
   Browsing: (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -42,8 +43,8 @@ const activityIcons: Record<(typeof activities)[number], ReactNode> = {
   ),
   Multimedia: (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -312,42 +313,58 @@ export function MonitorPage() {
   };
 
   return (
-    <main className="page-fade flex min-h-screen items-center justify-center px-4 py-12">
+    <main className="page-fade relative flex h-full w-full items-stretch justify-center overflow-hidden px-3 py-3 sm:px-5 sm:py-5 lg:px-6 lg:py-6">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -left-32 -top-32 h-[500px] w-[500px] rounded-full bg-[var(--accent)]/10 blur-[120px]" />
         <div className="absolute -bottom-40 -right-20 h-[400px] w-[400px] rounded-full bg-[var(--accent-3)]/10 blur-[100px]" />
       </div>
 
-      <div className="relative w-full max-w-2xl">
-        <div className="tech-card glass rounded-sm border border-white/10 bg-black/60 p-8 shadow-2xl shadow-black/60 backdrop-blur-xl">
-          <div className="relative flex items-start justify-between">
+      <motion.div
+        initial={{ opacity: 0, y: -42, scale: 0.985 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="relative flex h-full w-full items-stretch"
+      >
+        <motion.div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-6 top-0 z-10 h-px bg-gradient-to-r from-transparent via-[var(--accent)]/80 to-transparent"
+          initial={{ opacity: 0, y: -28 }}
+          animate={{ opacity: [0, 0.95, 0], y: [-28, 220, 440] }}
+          transition={{ duration: 1.05, ease: 'easeOut', delay: 0.06 }}
+        />
+        <div className="tech-card glass flex h-full min-h-0 w-full flex-col rounded-sm border border-white/10 bg-black/60 p-4 shadow-2xl shadow-black/60 backdrop-blur-xl sm:p-6 lg:p-7">
+          <div className="relative flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-sm border border-white/10 bg-[var(--accent)]/10 text-[var(--accent)]">
-                <Activity className="h-5 w-5" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-sm border border-white/10 bg-[var(--accent)]/10 text-[var(--accent)] sm:h-10 sm:w-10">
+                <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--text-soft)]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-soft)]">
                   Monitoring Control
                 </p>
-                <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[var(--text)]">Live Monitor</h1>
+                <h1 className="mt-0.5 text-xl font-semibold tracking-tight text-[var(--text)] sm:text-2xl lg:text-[1.65rem]">
+                  Live Monitor
+                </h1>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-1 rounded-sm border border-white/10 bg-black/55 px-4 py-2.5 backdrop-blur-sm">
+            <div className="flex flex-col items-end gap-1 rounded-sm border border-white/10 bg-black/55 px-2.5 py-1.5 backdrop-blur-sm sm:px-3 sm:py-2">
               <div className="flex items-center gap-2">
-                <Clock className="h-3.5 w-3.5 text-[var(--text-soft)]" />
-                <p className="font-mono text-sm font-medium tabular-nums tracking-wide text-[var(--text)]">
+                <Clock className="h-3 w-3 text-[var(--text-soft)]" />
+                <p className="font-mono text-sm font-semibold tabular-nums tracking-wide text-[var(--text)] sm:text-base">
                   {timeLabel}
                 </p>
               </div>
-              <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--text-soft)]">{dateLabel}</p>
+              <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-[var(--text-soft)]">
+                {dateLabel}
+              </p>
             </div>
           </div>
 
-          <p className="mt-4 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-soft)]">
+          <p className="mt-3 text-xs font-medium uppercase tracking-[0.12em] text-[var(--text-soft)] sm:text-sm">
             Select an activity mode, then start or stop the tracking session.
           </p>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-3 lg:mt-5 lg:flex-1 lg:auto-rows-fr lg:gap-3">
             {activities.map((activity) => {
               const active = selectedActivity === activity;
               return (
@@ -363,7 +380,7 @@ export function MonitorPage() {
                     });
                   }}
                   className={cn(
-                    'group relative flex flex-col items-center gap-2.5 rounded-sm border px-4 py-5 text-sm font-medium uppercase tracking-[0.12em] transition-all duration-150',
+                    'group relative flex h-full min-h-[6.9rem] flex-col items-center justify-center gap-2 rounded-sm border px-3 py-4 text-xs font-medium uppercase tracking-[0.1em] transition-all duration-150 sm:text-sm',
                     active
                       ? 'border-[var(--accent)]/60 bg-[var(--accent)]/12 text-[var(--accent)] shadow-[0_0_12px_rgba(0,255,65,0.18)]'
                       : 'border-white/10 bg-black/35 text-[var(--text-soft)] hover:border-white/30 hover:bg-black/70 hover:text-[var(--text)]'
@@ -371,7 +388,7 @@ export function MonitorPage() {
                 >
                   <span
                     className={cn(
-                      'flex h-9 w-9 items-center justify-center rounded-sm border transition-colors duration-150',
+                      'flex h-7 w-7 items-center justify-center rounded-sm border transition-colors duration-150 sm:h-8 sm:w-8',
                       active
                         ? 'border-[var(--accent)]/30 bg-[var(--accent)]/15 text-[var(--accent)]'
                         : 'border-white/10 bg-black/35 text-[var(--text-soft)] group-hover:border-white/25 group-hover:text-[var(--text)]'
@@ -391,12 +408,12 @@ export function MonitorPage() {
             })}
           </div>
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-4 flex gap-2.5 lg:mt-5">
             <button
               onClick={handleStart}
               disabled={!selectedActivity || isOn || isLoading}
               className={cn(
-                'inline-flex flex-1 items-center justify-center gap-2 rounded-sm border border-[var(--accent)] bg-[var(--accent)] px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-black transition-all duration-75',
+                'inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-sm border border-[var(--accent)] bg-[var(--accent)] px-4 text-xs font-semibold uppercase tracking-[0.1em] text-black transition-all duration-75 sm:h-11 sm:text-sm',
                 'hover:bg-white hover:text-black',
                 'disabled:cursor-not-allowed disabled:opacity-40'
               )}
@@ -408,19 +425,21 @@ export function MonitorPage() {
               onClick={handleStop}
               disabled={!isOn || isLoading}
               className={cn(
-                'inline-flex flex-1 items-center justify-center gap-2 rounded-sm border border-white/20 bg-black/60 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-[var(--text)] transition-all duration-75',
+                'inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-sm border border-white/20 bg-black/60 px-4 text-xs font-semibold uppercase tracking-[0.1em] text-[var(--text)] transition-all duration-75 sm:h-11 sm:text-sm',
                 'hover:bg-white hover:text-black',
                 'disabled:cursor-not-allowed disabled:opacity-40'
               )}
             >
-              <Square className="h-3.5 w-3.5" />
+              <Square className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {isLoading && isOn ? 'Stopping...' : 'Stop'}
             </button>
           </div>
 
-          <div className="mt-6 rounded-sm border border-white/10 bg-black/45 p-5 backdrop-blur-sm">
+          <div className="mt-4 rounded-sm border border-white/10 bg-black/45 p-4 backdrop-blur-sm sm:p-5 lg:mt-5">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-soft)]">System Status</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-soft)] sm:text-[11px]">
+                System Status
+              </p>
               <div className="flex items-center gap-1.5">
                 {isOn ? (
                   <Wifi className="h-3.5 w-3.5 text-[var(--accent)]" />
@@ -429,7 +448,7 @@ export function MonitorPage() {
                 )}
                 <span
                   className={cn(
-                    'text-xs font-medium uppercase tracking-[0.12em]',
+                    'text-xs font-medium uppercase tracking-[0.1em] sm:text-sm',
                     isOn ? 'text-[var(--accent)]' : 'text-[var(--text-soft)]'
                   )}
                 >
@@ -438,7 +457,7 @@ export function MonitorPage() {
               </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-4">
+            <div className="mt-3 flex items-center gap-3.5 sm:gap-4">
               <div className="relative flex h-12 w-12 items-center justify-center">
                 {isOn ? (
                   <span className="absolute inset-0 animate-ping rounded-full bg-[var(--accent)]/25" />
@@ -461,13 +480,13 @@ export function MonitorPage() {
               <div className="flex flex-col gap-1">
                 <span
                   className={cn(
-                    'font-mono text-xl font-bold tracking-[0.12em] transition-colors duration-300',
+                    'font-mono text-xl font-bold tracking-[0.1em] transition-colors duration-300 sm:text-2xl',
                     isOn ? 'text-[var(--accent)]' : 'text-[var(--text-soft)]'
                   )}
                 >
                   {isOn ? 'ACTIVE' : 'OFFLINE'}
                 </span>
-                <span className="text-xs uppercase tracking-[0.12em] text-[var(--text-soft)]">
+                <span className="text-xs uppercase tracking-[0.1em] text-[var(--text-soft)] sm:text-sm">
                   {selectedActivity ? (
                     <>
                       Mode: <span className="font-medium text-[var(--text)]">{selectedActivity}</span>
@@ -480,14 +499,16 @@ export function MonitorPage() {
             </div>
 
             {statusMessage ? (
-              <div className="mt-4 flex items-center gap-2 rounded-sm border border-[var(--accent-2)]/35 bg-[var(--accent-2)]/10 px-3 py-2">
+              <div className="mt-3 flex items-center gap-2 rounded-sm border border-[var(--accent-2)]/35 bg-[var(--accent-2)]/10 px-2.5 py-1.5">
                 <div className="h-1.5 w-1.5 rounded-full bg-[var(--accent-2)]" />
-                <p className="font-mono text-xs uppercase tracking-[0.1em] text-[var(--accent-2)]">{statusMessage}</p>
+                <p className="font-mono text-xs uppercase tracking-[0.08em] text-[var(--accent-2)] sm:text-sm">
+                  {statusMessage}
+                </p>
               </div>
             ) : null}
           </div>
         </div>
-      </div>
+      </motion.div>
     </main>
   );
 }

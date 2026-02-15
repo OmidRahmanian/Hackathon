@@ -31,6 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const isAuthRoute = pathname === '/' || pathname === '/login' || pathname === '/signup';
+  const isMonitorRoute = pathname === '/monitor';
 
   useEffect(() => {
     if (!ready) return;
@@ -59,26 +60,25 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-black/70 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-5 py-3">
-          <div className="flex items-center gap-3">
-            <div className="relative h-10 w-10 overflow-hidden rounded-sm border border-white/10 bg-black/55 shadow-[0_0_16px_rgba(255,255,255,0.15)]">
+      <header className="sticky top-0 z-40 border-b border-white/10 bg-black/75 backdrop-blur-md">
+        <div className="flex h-20 w-full items-center gap-4 px-3 sm:px-6 lg:px-8">
+          <div className="flex shrink-0 items-center gap-3">
+            <div className="relative h-12 w-12 overflow-hidden rounded-sm border border-white/10 bg-black/55 shadow-[0_0_16px_rgba(255,255,255,0.15)]">
               <Image
                 src="/sauron-logo.svg"
                 alt="Sauron logo"
                 fill
-                sizes="40px"
+                sizes="48px"
                 className="object-contain p-1"
                 priority
               />
             </div>
-            <div>
-              <p className="hud-label">SAURON</p>
-              <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--text)]">Tactical Interface</p>
-            </div>
+            <p className="font-mono text-sm font-semibold uppercase tracking-[0.2em] text-[var(--text)] sm:text-base">
+              SAURON
+            </p>
           </div>
 
-          <nav className="flex items-center gap-1 rounded-sm border border-white/10 bg-black/45 p-1">
+          <nav className="ml-2 flex flex-1 items-stretch gap-1 rounded-sm border border-white/10 bg-black/45 p-1.5">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -88,21 +88,30 @@ export function AppShell({ children }: { children: ReactNode }) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'group flex items-center gap-2 rounded-sm border px-3 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] transition-all duration-75',
+                    'group inline-flex flex-1 items-center justify-center gap-2 rounded-sm border px-3 py-2 font-mono text-xs font-semibold uppercase tracking-[0.14em] transition-all duration-75 sm:text-sm',
                     active
                       ? 'border-[var(--accent)] bg-[var(--accent)] text-black shadow-[0_0_10px_rgba(0,255,65,0.3)]'
                       : 'border-transparent bg-transparent text-[#888] hover:border-white/15 hover:bg-white hover:text-black'
                   )}
                 >
-                  <Icon className={cn('h-3.5 w-3.5', active ? 'text-black' : 'text-[#888] group-hover:text-black')} />
-                  <span className="hidden sm:inline-block">{item.label}</span>
+                  <Icon className={cn('h-4 w-4 sm:h-[1.05rem] sm:w-[1.05rem]', active ? 'text-black' : 'text-[#888] group-hover:text-black')} />
+                  <span className="hidden md:inline-block">{item.label}</span>
                 </Link>
               );
             })}
           </nav>
         </div>
       </header>
-      <main className="page-fade mx-auto w-full max-w-7xl px-6 py-8">{children}</main>
+      <main
+        className={cn(
+          'page-fade mx-auto w-full',
+          isMonitorRoute
+            ? 'h-[calc(100dvh-5rem)] max-w-none overflow-hidden px-0 py-0'
+            : 'max-w-7xl px-6 py-8'
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 }
