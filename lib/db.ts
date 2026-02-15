@@ -41,6 +41,36 @@ export type LeaderboardRow = {
   score: number | null;
 };
 
+export type CoachChatHistoryRow = {
+  id: number;
+  user_id: number | null;
+  user_identifier: string;
+  question: string;
+  answer: string;
+  model: string | null;
+  used_fallback: boolean;
+  created_at: Date | string | null;
+};
+
+export type UserProfileRow = {
+  id: number;
+  name: string | null;
+  lastname: string | null;
+  email: string | null;
+  username: string | null;
+  score: number | null;
+};
+
+export type CoachWeeklyRecommendationRow = {
+  id: number;
+  user_id: number | null;
+  user_identifier: string;
+  recommendation: string;
+  model: string | null;
+  source_latest_data_at: Date | string | null;
+  generated_at: Date | string | null;
+};
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
@@ -124,6 +154,217 @@ async function recomputeAndPersistUserScore(userId: string, historyUserId: numbe
     `,
     [email, nextScore]
   );
+}
+
+let coachChatTableInit: Promise<void> | null = null;
+
+async function ensureCoachChatHistoryTable() {
+  if (!coachChatTableInit) {
+    coachChatTableInit = (async () => {
+      await query(`
+        CREATE TABLE IF NOT EXISTS coach_chat_history (
+          id SERIAL PRIMARY KEY,
+          user_id INT REFERENCES users(id) ON DELETE SET NULL,
+          user_identifier VARCHAR(255) NOT NULL,
+          question TEXT NOT NULL,
+          answer TEXT NOT NULL,
+          model VARCHAR(100),
+          used_fallback BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      await query(`
+        CREATE INDEX IF NOT EXISTS idx_coach_chat_history_user_identifier_created_at
+        ON coach_chat_history (user_identifier, created_at DESC);
+      `);
+    })();
+  }
+
+  await coachChatTableInit;
+}
+
+function normalizeCoachUserIdentifier(value?: string) {
+  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return normalized || "demo";
+}
+
+async function resolveCoachUserRowId(userIdentifier: string): Promise<number | null> {
+  if (!userIdentifier.includes("@")) return null;
+
+  const user = await query<{ id: number | null }>(
+    `
+      SELECT id
+      FROM users
+      WHERE LOWER(email) = $1
+      ORDER BY id DESC
+      LIMIT 1;
+    `,
+    [userIdentifier]
+  );
+
+  const id = Number(user.rows[0]?.id ?? 0);
+  return id > 0 ? id : null;
+}
+
+export async function saveCoachChatMessage(params: {
+  userId?: string;
+  question: string;
+  answer: string;
+  model?: string;
+  usedFallback?: boolean;
+}): Promise<CoachChatHistoryRow | null> {
+  try {
+    await ensureCoachChatHistoryTable();
+
+    const userIdentifier = normalizeCoachUserIdentifier(params.userId);
+    const userRowId = await resolveCoachUserRowId(userIdentifier);
+
+    const inserted = await query<CoachChatHistoryRow>(
+      `
+        INSERT INTO coach_chat_history (
+          user_id,
+          user_identifier,
+          question,
+          answer,
+          model,
+          used_fallback
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *;
+      `,
+      [
+        userRowId,
+        userIdentifier,
+        params.question,
+        params.answer,
+        params.model ?? null,
+        Boolean(params.usedFallback),
+      ]
+    );
+
+    return inserted.rows[0] ?? null;
+  } catch (error) {
+    console.error("DB coach history save failed:", error);
+    return null;
+  }
+}
+
+let coachWeeklyTableInit: Promise<void> | null = null;
+
+async function ensureCoachWeeklyRecommendationTable() {
+  if (!coachWeeklyTableInit) {
+    coachWeeklyTableInit = (async () => {
+      await query(`
+        CREATE TABLE IF NOT EXISTS coach_weekly_recommendations (
+          id SERIAL PRIMARY KEY,
+          user_id INT REFERENCES users(id) ON DELETE SET NULL,
+          user_identifier VARCHAR(255) NOT NULL UNIQUE,
+          recommendation TEXT NOT NULL,
+          model VARCHAR(100),
+          source_latest_data_at TIMESTAMP,
+          generated_at TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      await query(`
+        CREATE INDEX IF NOT EXISTS idx_coach_weekly_recommendations_user_identifier
+        ON coach_weekly_recommendations (user_identifier);
+      `);
+    })();
+  }
+
+  await coachWeeklyTableInit;
+}
+
+export async function getUserProfileForCoach(userId?: string): Promise<UserProfileRow | null> {
+  const identifier = normalizeCoachUserIdentifier(userId);
+  const params: unknown[] = [identifier];
+
+  const where = identifier.includes("@")
+    ? "LOWER(email) = $1"
+    : "LOWER(username) = $1";
+
+  const user = await query<UserProfileRow>(
+    `
+      SELECT id, name, lastname, email, username, score
+      FROM users
+      WHERE ${where}
+      ORDER BY id DESC
+      LIMIT 1;
+    `,
+    params
+  );
+
+  return user.rows[0] ?? null;
+}
+
+export async function getLatestCoachWeeklyRecommendation(
+  userId?: string
+): Promise<CoachWeeklyRecommendationRow | null> {
+  await ensureCoachWeeklyRecommendationTable();
+  const identifier = normalizeCoachUserIdentifier(userId);
+
+  const rec = await query<CoachWeeklyRecommendationRow>(
+    `
+      SELECT *
+      FROM coach_weekly_recommendations
+      WHERE user_identifier = $1
+      LIMIT 1;
+    `,
+    [identifier]
+  );
+
+  return rec.rows[0] ?? null;
+}
+
+export async function upsertCoachWeeklyRecommendation(params: {
+  userId?: string;
+  recommendation: string;
+  model?: string;
+  sourceLatestDataAt?: Date | string | null;
+}): Promise<CoachWeeklyRecommendationRow | null> {
+  try {
+    await ensureCoachWeeklyRecommendationTable();
+
+    const identifier = normalizeCoachUserIdentifier(params.userId);
+    const userRowId = await resolveCoachUserRowId(identifier);
+    const sourceLatestDataAt = params.sourceLatestDataAt ?? null;
+
+    const saved = await query<CoachWeeklyRecommendationRow>(
+      `
+        INSERT INTO coach_weekly_recommendations (
+          user_id,
+          user_identifier,
+          recommendation,
+          model,
+          source_latest_data_at,
+          generated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, NOW())
+        ON CONFLICT (user_identifier)
+        DO UPDATE SET
+          user_id = EXCLUDED.user_id,
+          recommendation = EXCLUDED.recommendation,
+          model = EXCLUDED.model,
+          source_latest_data_at = EXCLUDED.source_latest_data_at,
+          generated_at = NOW()
+        RETURNING *;
+      `,
+      [
+        userRowId,
+        identifier,
+        params.recommendation,
+        params.model ?? null,
+        sourceLatestDataAt,
+      ]
+    );
+
+    return saved.rows[0] ?? null;
+  } catch (error) {
+    console.error("DB weekly recommendation save failed:", error);
+    return null;
+  }
 }
 
 export async function insertHistoryEvent(params: {

@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { saveCoachChatMessage } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,7 @@ If you are uncertain, say so instead of inventing details.`;
 
 type CoachRequestBody = {
   question?: string;
+  userId?: string;
 };
 
 const DEFAULT_LLM_URL = "http://127.0.0.1:11434";
@@ -71,13 +73,19 @@ async function callLocalModel(userMessage: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { question }: CoachRequestBody = (await req.json().catch(() => ({}))) ?? {};
+  const body: CoachRequestBody = (await req.json().catch(() => ({}))) ?? {};
+  const { question, userId: bodyUserId } = body;
 
   if (typeof question !== "string" || !question.trim()) {
     return new Response("Missing 'question' in request body.", { status: 400 });
   }
 
   const userMessage = question.trim();
+  const userId =
+    (typeof bodyUserId === "string" && bodyUserId.trim()) ||
+    req.headers.get("x-user-email") ||
+    req.headers.get("x-user-id") ||
+    "demo";
 
   let aiText: string | undefined;
   try {
@@ -88,6 +96,16 @@ export async function POST(req: NextRequest) {
   }
 
   const result = aiText ?? buildFallback(userMessage);
+  const usedFallback = !aiText;
+
+  // Save chat history without affecting response delivery if DB is unavailable.
+  void saveCoachChatMessage({
+    userId,
+    question: userMessage,
+    answer: result,
+    model: process.env.LOCAL_LLM_MODEL || DEFAULT_LLM_MODEL,
+    usedFallback,
+  });
 
   return new Response(result, {
     status: 200,
