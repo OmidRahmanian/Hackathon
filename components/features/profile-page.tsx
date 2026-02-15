@@ -1,33 +1,133 @@
 'use client';
 
 import Image from 'next/image';
-import { ChangeEvent, FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/components/features/auth-provider';
-import { Modal } from '@/components/ui/modal';
 
 export function ProfilePage() {
   const router = useRouter();
-  const { logout, email } = useAuth();
+  const { logout, userEmail } = useAuth();
   const [name, setName] = useState('Your Name');
   const [bio, setBio] = useState('Building healthier desk habits one day at a time.');
-  const [avatarSrc, setAvatarSrc] = useState('/avatar-neutral.svg');
-  const [friendEmail, setFriendEmail] = useState('');
-  const [status, setStatus] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetStep, setResetStep] = useState<'verify-current' | 'set-new' | 'done'>(
-    'verify-current'
-  );
-  const [resetError, setResetError] = useState('');
-  const [resetStatus, setResetStatus] = useState('');
-  const [resetLoading, setResetLoading] = useState(false);
+  const [avatarSrc, setAvatarSrc] = useState('/avatar-1.svg');
+  const [friendInput, setFriendInput] = useState('');
+  const [profileStatus, setProfileStatus] = useState('');
+  const [friendStatus, setFriendStatus] = useState('');
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [isFriendSaving, setIsFriendSaving] = useState(false);
+  const [friends, setFriends] = useState<
+    {
+      id: number;
+      displayName: string;
+      username: string;
+      email: string;
+    }[]
+  >([]);
+
+  const activeEmail = useMemo(() => {
+    if (userEmail && userEmail.includes('@')) return userEmail;
+    return 'demo@example.com';
+  }, [userEmail]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      try {
+        const params = new URLSearchParams({ email: activeEmail });
+        const response = await fetch(`/api/profile?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (cancelled) return;
+
+        if (response.status === 404) {
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Profile load failed (${response.status})`);
+        }
+
+        const data = (await response.json()) as {
+          profile?: {
+            name?: string;
+            bio?: string;
+          } | null;
+        };
+
+        if (!data.profile) return;
+        setName(data.profile.name?.trim() ? data.profile.name : 'Your Name');
+        setBio(
+          data.profile.bio?.trim()
+            ? data.profile.bio
+            : 'Building healthier desk habits one day at a time.'
+        );
+      } catch (error) {
+        console.error('Profile load failed:', error);
+        if (!cancelled) {
+          setProfileStatus('Unable to load profile data from database.');
+        }
+      }
+    };
+
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEmail]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFriends = async () => {
+      try {
+        const params = new URLSearchParams({ userEmail: activeEmail });
+        const response = await fetch(`/api/friends?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (cancelled) return;
+        if (!response.ok) {
+          throw new Error(`Friends load failed (${response.status})`);
+        }
+
+        const data = (await response.json()) as {
+          friends?: {
+            id?: number;
+            displayName?: string;
+            username?: string;
+            email?: string;
+          }[];
+        };
+
+        const rows = Array.isArray(data.friends)
+          ? data.friends.map((friend) => ({
+              id: Number(friend.id ?? 0),
+              displayName: friend.displayName?.trim() || friend.username?.trim() || 'Unknown',
+              username: friend.username?.trim() || '',
+              email: friend.email?.trim() || ''
+            }))
+          : [];
+
+        setFriends(rows);
+      } catch (error) {
+        console.error('Friends load failed:', error);
+      }
+    };
+
+    void loadFriends();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEmail]);
 
   const onImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -36,15 +136,108 @@ export function ProfilePage() {
     setAvatarSrc(imageUrl);
   };
 
-  const addFriend = (event: FormEvent) => {
+  const saveProfile = async () => {
+    setIsProfileSaving(true);
+    setProfileStatus('');
+
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: activeEmail,
+          name,
+          bio
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Save failed (${response.status})`);
+      }
+
+      setProfileStatus('Profile saved to database.');
+    } catch (error) {
+      console.error('Profile save failed:', error);
+      setProfileStatus(error instanceof Error ? error.message : 'Unable to save profile.');
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  const addFriend = async (event: FormEvent) => {
     event.preventDefault();
-    if (!friendEmail.includes('@')) {
-      setStatus('Enter a valid email address.');
+    const nextFriendIdentifier = friendInput.trim().toLowerCase();
+
+    if (!nextFriendIdentifier) {
+      setFriendStatus('Enter a valid username or email.');
       return;
     }
 
-    setStatus(`Friend request sent to ${friendEmail}.`);
-    setFriendEmail('');
+    setIsFriendSaving(true);
+    setFriendStatus('');
+
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userEmail: activeEmail,
+          friendIdentifier: nextFriendIdentifier
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Add friend failed (${response.status})`);
+      }
+
+      const data = (await response.json()) as {
+        alreadyExists?: boolean;
+        friend?: {
+          id?: number;
+          displayName?: string;
+          username?: string;
+          email?: string;
+        };
+      };
+
+      const savedFriend = data.friend
+        ? {
+            id: Number(data.friend.id ?? 0),
+            displayName:
+              data.friend.displayName?.trim() || data.friend.username?.trim() || 'Unknown',
+            username: data.friend.username?.trim() || '',
+            email: data.friend.email?.trim() || ''
+          }
+        : null;
+
+      if (data.alreadyExists) {
+        const label = nextFriendIdentifier.includes('@')
+          ? nextFriendIdentifier
+          : `@${nextFriendIdentifier}`;
+        setFriendStatus(`${label} is already in your friends list.`);
+      } else {
+        const label = nextFriendIdentifier.includes('@')
+          ? nextFriendIdentifier
+          : `@${nextFriendIdentifier}`;
+        setFriendStatus(`${label} saved to your friends list.`);
+      }
+
+      if (savedFriend) {
+        setFriends((prev) => {
+          const exists = prev.some((item) => item.id === savedFriend.id);
+          if (exists) return prev;
+          return [savedFriend, ...prev];
+        });
+      }
+      setFriendInput('');
+    } catch (error) {
+      console.error('Add friend failed:', error);
+      setFriendStatus(error instanceof Error ? error.message : 'Unable to save friend.');
+    } finally {
+      setIsFriendSaving(false);
+    }
   };
 
   const onSignOut = () => {
@@ -52,143 +245,28 @@ export function ProfilePage() {
     router.replace('/login');
   };
 
-  const openResetModal = () => {
-    setResetError('');
-    setResetStatus('');
-    setResetStep('verify-current');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setResetOpen(true);
-  };
-
-  const closeResetModal = () => {
-    if (resetLoading) return;
-    setResetOpen(false);
-  };
-
-  const verifyCurrentPassword = async () => {
-    if (!currentPassword) {
-      setResetError('Enter your current password first.');
-      return;
-    }
-
-    if (!email) {
-      setResetError('No account email found. Please sign out and sign in again.');
-      return;
-    }
-
-    setResetLoading(true);
-    setResetError('');
-
-    try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'verify-current',
-          email,
-          currentPassword
-        })
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Verification failed (${response.status})`);
-      }
-
-      setResetStep('set-new');
-    } catch (error) {
-      setResetError(error instanceof Error ? error.message : 'Unable to verify password.');
-    } finally {
-      setResetLoading(false);
-    }
-  };
-
-  const changePassword = async () => {
-    const nextPassword = newPassword.trim();
-    const nextPasswordConfirm = confirmPassword.trim();
-
-    if (!nextPassword || !nextPasswordConfirm) {
-      setResetError('Enter and confirm your new password.');
-      return;
-    }
-
-    if (nextPassword !== nextPasswordConfirm) {
-      setResetError('New passwords do not match.');
-      return;
-    }
-
-    if (!currentPassword) {
-      setResetStep('verify-current');
-      setResetError('Current password verification expired. Please verify again.');
-      return;
-    }
-
-    if (!email) {
-      setResetError('No account email found. Please sign out and sign in again.');
-      return;
-    }
-
-    setResetLoading(true);
-    setResetError('');
-
-    try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'change-password',
-          email,
-          currentPassword,
-          newPassword: nextPassword
-        })
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || `Password change failed (${response.status})`);
-      }
-
-      setResetStep('done');
-      setResetStatus('Password has been changed.');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error) {
-      setResetError(error instanceof Error ? error.message : 'Unable to change password.');
-    } finally {
-      setResetLoading(false);
-    }
-  };
-
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
       <Card>
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Profile</h1>
-          <Button variant="secondary" onClick={onSignOut}>
+          <Button variant="secondary" onClick={onSignOut} disabled={isProfileSaving}>
             Sign Out
           </Button>
         </div>
+        <p className="mt-1 text-xs soft-text">Connected account: {activeEmail}</p>
         <div className="mt-4 flex items-center gap-4">
-          <Image src={avatarSrc} alt="Profile avatar" width={80} height={80} className="rounded-full object-cover" />
+          <Image src={avatarSrc} alt="Profile avatar" width={80} height={80} className="rounded-sm border border-white/15 object-cover" />
           <div className="flex-1 space-y-2">
             <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" />
             <Input value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Bio" />
             <Input type="file" accept="image/*" onChange={onImageChange} />
+            <Button onClick={saveProfile} disabled={isProfileSaving}>
+              {isProfileSaving ? 'Saving...' : 'Save Profile'}
+            </Button>
           </div>
         </div>
-
-        <div className="my-5 h-px bg-white/10" />
-
-        <div className="space-y-3">
-          <h2 className="text-xl font-semibold">Change Password</h2>
-          <Button type="button" onClick={openResetModal}>
-            Change Password
-          </Button>
-          {resetStatus ? <p className="text-sm soft-text">{resetStatus}</p> : null}
-        </div>
+        {profileStatus ? <p className="mt-3 text-sm soft-text">{profileStatus}</p> : null}
       </Card>
 
       <Card>
@@ -199,84 +277,42 @@ export function ProfilePage() {
 
         <form onSubmit={addFriend} className="mt-4 space-y-3">
           <Input
-            type="email"
-            value={friendEmail}
-            onChange={(event) => setFriendEmail(event.target.value)}
-            placeholder="Enter friend email address"
+            type="text"
+            value={friendInput}
+            onChange={(event) => setFriendInput(event.target.value)}
+            placeholder="Enter friend username or email"
           />
-          <Button type="submit">Send Friend Request</Button>
+          <Button type="submit" disabled={isFriendSaving}>
+            {isFriendSaving ? 'Saving...' : 'Send Friend Request'}
+          </Button>
         </form>
 
-        {status ? <p className="mt-3 text-sm soft-text">{status}</p> : null}
-      </Card>
+        {friendStatus ? <p className="mt-3 text-sm soft-text">{friendStatus}</p> : null}
 
-      <Modal open={resetOpen} onClose={closeResetModal}>
-        <h4 className="text-lg font-semibold">Change password</h4>
-
-        {resetStep === 'verify-current' ? (
-          <>
-            <p className="mt-1 text-sm soft-text">Enter your current password to continue.</p>
-            <Input
-              type="password"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              placeholder="Current password"
-            />
-            {resetError ? <p className="mt-3 text-sm text-[var(--accent-2)]">{resetError}</p> : null}
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="ghost" type="button" onClick={closeResetModal} disabled={resetLoading}>
-                Cancel
-              </Button>
-              <Button type="button" onClick={verifyCurrentPassword} disabled={resetLoading}>
-                {resetLoading ? 'Verifying...' : 'Continue'}
-              </Button>
-            </div>
-          </>
-        ) : resetStep === 'set-new' ? (
-          <>
-            <p className="mt-1 text-sm soft-text">Enter and confirm your new password.</p>
-            <Input
-              type="password"
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              placeholder="New password"
-            />
-            <Input
-              type="password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              placeholder="Confirm new password"
-            />
-            {resetError ? <p className="mt-3 text-sm text-[var(--accent-2)]">{resetError}</p> : null}
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={() => {
-                  if (resetLoading) return;
-                  setResetError('');
-                  setResetStep('verify-current');
-                }}
-                disabled={resetLoading}
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-mono uppercase tracking-[0.16em] soft-text">
+            Your friends
+          </p>
+          {friends.length > 0 ? (
+            friends.map((friend) => (
+              <div
+                key={`${friend.id}-${friend.username}`}
+                className="rounded-sm border border-white/10 bg-black/45 px-3 py-2"
               >
-                Back
-              </Button>
-              <Button type="button" onClick={changePassword} disabled={resetLoading}>
-                {resetLoading ? 'Saving...' : 'Change Password'}
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="mt-1 text-sm soft-text">Password has been changed.</p>
-            <div className="mt-5 flex justify-end">
-              <Button type="button" onClick={closeResetModal}>
-                Close
-              </Button>
-            </div>
-          </>
-        )}
-      </Modal>
+                <p className="font-mono text-sm uppercase tracking-[0.08em]">
+                  {friend.displayName}
+                </p>
+                <p className="text-xs soft-text">
+                  @{friend.username}
+                  {friend.email ? ` • ${friend.email}` : ''}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm soft-text">No friends added yet.</p>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils/cn';
+import { useAuth } from '@/components/features/auth-provider';
 
 const activities = ['Studying', 'Browsing', 'Multimedia'] as const;
-const EVENT_USER_ID = 'demo';
 const EVENT_DEBOUNCE_MS = 10_000;
 
 type MonitorEventType =
@@ -17,6 +17,7 @@ type MonitorEventType =
   | 'TOO_CLOSE';
 
 export function MonitorPage() {
+  const { userEmail } = useAuth();
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
   const [isOn, setIsOn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +26,10 @@ export function MonitorPage() {
   const seenLogLinesRef = useRef<Set<string>>(new Set());
   const lastBadPostureEventAtRef = useRef(0);
   const lastTooCloseEventAtRef = useRef(0);
+  const eventUserId = useMemo(() => {
+    const normalized = userEmail?.trim().toLowerCase();
+    return normalized && normalized.length > 0 ? normalized : 'demo';
+  }, [userEmail]);
 
   const postEvent = async (type: MonitorEventType, activity?: string | null) => {
     try {
@@ -32,7 +37,7 @@ export function MonitorPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: EVENT_USER_ID,
+          userId: eventUserId,
           type,
           activity: activity ?? undefined
         })
@@ -55,34 +60,19 @@ export function MonitorPage() {
     void postEvent(type, activity);
   };
 
-  const processMonitorLogs = (
-    recentLogs: string[] | undefined,
-    activity?: string | null,
-    isRunning?: boolean,
-    startedAt?: string | null
-  ) => {
+  const processMonitorLogs = (recentLogs: string[] | undefined, activity?: string | null) => {
     if (!Array.isArray(recentLogs) || recentLogs.length === 0) return;
-    if (!isRunning || !startedAt) return;
-
-    const startedAtMs = new Date(startedAt).getTime();
 
     for (const line of recentLogs) {
       if (!line || seenLogLinesRef.current.has(line)) continue;
       seenLogLinesRef.current.add(line);
 
-      // Process only log entries from the current monitor session.
-      const tsMatch = line.match(/^\[([^\]]+)\]/);
-      if (tsMatch && Number.isFinite(startedAtMs)) {
-        const lineMs = new Date(tsMatch[1]).getTime();
-        if (Number.isFinite(lineMs) && lineMs < startedAtMs) continue;
-      }
-
       if (line.includes('Fix your posture!')) {
-        maybePostDebouncedEvent('BAD_POSTURE', activity);
+        maybePostDebouncedEvent('BAD_POSTURE', activity ?? selectedActivity);
       }
 
       if (line.includes('Too Close to Screen!')) {
-        maybePostDebouncedEvent('TOO_CLOSE', activity);
+        maybePostDebouncedEvent('TOO_CLOSE', activity ?? selectedActivity);
       }
     }
   };
@@ -97,7 +87,6 @@ export function MonitorPage() {
         const data = (await response.json()) as {
           isRunning?: boolean;
           activity?: string | null;
-          startedAt?: string | null;
           lastError?: string | null;
           recentLogs?: string[];
         };
@@ -113,7 +102,7 @@ export function MonitorPage() {
           });
         }
         setStatusMessage(data.lastError ?? null);
-        processMonitorLogs(data.recentLogs, data.activity, running, data.startedAt);
+        processMonitorLogs(data.recentLogs, data.activity);
       } catch {
         if (!cancelled) {
           setStatusMessage('Unable to load monitor status.');
@@ -184,6 +173,7 @@ export function MonitorPage() {
       if (data.activity) {
         setSelectedActivity(data.activity);
       }
+
       await postEvent('SESSION_START', data.activity ?? selectedActivity);
     } catch (error) {
       setIsOn(false);

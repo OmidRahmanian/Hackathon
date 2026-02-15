@@ -6,7 +6,8 @@ CREATE TABLE users (
     email VARCHAR(255),
     date DATE,
     username VARCHAR(100),
-    password VARCHAR(255)
+    password VARCHAR(255),
+    score INT NOT NULL DEFAULT 0
 );
 
 CREATE TABLE friends (
@@ -19,15 +20,21 @@ CREATE TABLE friends (
 );
 
 CREATE TABLE history (
-    id SERIAL PRIMARY KEY,
-    history_id INT UNIQUE,
+    session_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
     start_date TIMESTAMP,
     end_date TIMESTAMP,
     topic VARCHAR(255),
-    bad_pos INT,
-    streak_count BOOLEAN,
-    score INT
+    bad_pos INT DEFAULT 0,
+    too_close_count INT DEFAULT 0,
+    session_time_minutes INT GENERATED ALWAYS AS (
+        CASE
+            WHEN start_date IS NULL OR end_date IS NULL THEN NULL
+            ELSE FLOOR(EXTRACT(EPOCH FROM (end_date - start_date)) / 60)::INT
+        END
+    ) STORED
 );
+CREATE INDEX IF NOT EXISTS idx_history_user_id_start_date ON history (user_id, start_date DESC);
 
 CREATE TABLE streak (
     id SERIAL PRIMARY KEY,

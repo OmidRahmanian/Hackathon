@@ -54,17 +54,18 @@ export async function POST(req: NextRequest) {
   }
 
   const eventResponse = {
-    id: stored.history_id ?? stored.id,
+    id: stored.session_id ?? stored.user_id,
     userId,
     type,
     ts,
     activity,
     // Additional DB-backed fields for observability while keeping shape stable.
     bad_pos: stored.bad_pos ?? 0,
-    score: stored.score ?? 0,
+    too_close_count: stored.too_close_count ?? 0,
     start_date: stored.start_date,
     end_date: stored.end_date,
     topic: stored.topic,
+    session_time_minutes: stored.session_time_minutes ?? null,
   };
 
   return Response.json({ ok: true, event: eventResponse });

@@ -15,7 +15,7 @@ const AUTH_EMAIL_KEY = 'postureos-auth-email';
 type AuthContextType = {
   ready: boolean;
   isAuthenticated: boolean;
-  email: string | null;
+  userEmail: string | null;
   login: (email: string, password: string) => boolean;
   logout: () => void;
 };
@@ -25,20 +25,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [email, setEmail] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const current = window.localStorage.getItem(AUTH_STORAGE_KEY);
+    const currentEmail = window.localStorage.getItem(AUTH_EMAIL_KEY);
     setIsAuthenticated(current === '1');
-    setEmail(window.localStorage.getItem(AUTH_EMAIL_KEY));
+    setUserEmail(current === '1' ? currentEmail : null);
     setReady(true);
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === AUTH_STORAGE_KEY) {
-        setIsAuthenticated(event.newValue === '1');
-      }
-      if (event.key === AUTH_EMAIL_KEY) {
-        setEmail(event.newValue);
+      if (event.key === AUTH_STORAGE_KEY || event.key === AUTH_EMAIL_KEY) {
+        const nextAuth = window.localStorage.getItem(AUTH_STORAGE_KEY);
+        const nextEmail = window.localStorage.getItem(AUTH_EMAIL_KEY);
+        setIsAuthenticated(nextAuth === '1');
+        setUserEmail(nextAuth === '1' ? nextEmail : null);
       }
     };
 
@@ -47,13 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = (email: string, password: string) => {
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail || !password.trim()) return false;
+    if (!email.trim() || !password.trim()) return false;
 
+    const normalizedEmail = email.trim().toLowerCase();
     window.localStorage.setItem(AUTH_STORAGE_KEY, '1');
     window.localStorage.setItem(AUTH_EMAIL_KEY, normalizedEmail);
     setIsAuthenticated(true);
-    setEmail(normalizedEmail);
+    setUserEmail(normalizedEmail);
     return true;
   };
 
@@ -61,18 +62,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     window.localStorage.removeItem(AUTH_EMAIL_KEY);
     setIsAuthenticated(false);
-    setEmail(null);
+    setUserEmail(null);
   };
 
   const value = useMemo(
     () => ({
       ready,
       isAuthenticated,
-      email,
+      userEmail,
       login,
       logout
     }),
-    [ready, isAuthenticated, email]
+    [ready, isAuthenticated, userEmail]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

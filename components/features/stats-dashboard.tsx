@@ -19,6 +19,7 @@ import { achievements } from '@/lib/data/mock-data';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
+import { useAuth } from '@/components/features/auth-provider';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
@@ -63,12 +64,11 @@ function getCurrentHourTrendLabels(now: Date) {
 
 export function StatsDashboard() {
   const { stats, loading: statsLoading, error: statsError } = useLiveStats();
+  const { userEmail } = useAuth();
   const [shareOpen, setShareOpen] = useState(false);
   const [timeRangeLabel, setTimeRangeLabel] = useState(getCurrentHourRangeLabel(new Date()));
   const [trendLabels, setTrendLabels] = useState(getCurrentHourTrendLabels(new Date()));
-  const [leaderboardUsers, setLeaderboardUsers] = useState<
-    { name: string; streakDays: number; score: number }[]
-  >([]);
+  const [leaderboardUsers, setLeaderboardUsers] = useState<{ name: string; score: number }[]>([]);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -87,19 +87,25 @@ export function StatsDashboard() {
     let cancelled = false;
 
     const loadLeaderboard = async () => {
+      if (!userEmail) {
+        setLeaderboardUsers([]);
+        setLeaderboardError('Sign in to view your friends leaderboard.');
+        return;
+      }
+
       try {
         setLeaderboardError(null);
-        const response = await fetch('/api/leaderboard', {
+        const params = new URLSearchParams({ userEmail });
+        const response = await fetch(`/api/friends/leaderboard?${params.toString()}`, {
           method: 'GET',
           cache: 'no-store'
         });
-
         if (!response.ok) {
           throw new Error(`Leaderboard API failed (${response.status})`);
         }
 
         const data = (await response.json()) as {
-          entries?: { name?: string; streakDays?: number; score?: number }[];
+          entries?: { name?: string; score?: number }[];
         };
 
         if (cancelled) return;
@@ -107,7 +113,6 @@ export function StatsDashboard() {
         const entries = Array.isArray(data.entries)
           ? data.entries.map((entry) => ({
               name: entry.name ?? 'Unknown',
-              streakDays: Number(entry.streakDays ?? 0),
               score: Number(entry.score ?? 0)
             }))
           : [];
@@ -130,7 +135,7 @@ export function StatsDashboard() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [userEmail]);
 
   const badPostureTimeline = useMemo(() => {
     const points = trendLabels.length;
@@ -188,7 +193,7 @@ export function StatsDashboard() {
     }
   };
 
-  const currentScore = Math.round(stats.scoreAverage);
+  const currentScore = stats.userScore;
 
   return (
     <div className="space-y-5">
@@ -216,10 +221,10 @@ export function StatsDashboard() {
             </Button>
           </div>
           <div className="mt-8 flex items-center justify-center gap-3 rounded-sm border border-white/10 bg-black/45 py-8">
-            <span className="font-mono text-5xl font-extrabold">#{currentScore}</span>
+            <span className="font-mono text-5xl font-extrabold">{currentScore}</span>
             <Flame className="h-10 w-10 text-[var(--accent-2)]" />
           </div>
-          <p className="mt-4 text-sm soft-text">Keep this up today to improve your score.</p>
+          <p className="mt-4 text-sm soft-text">Your score updates after each session.</p>
         </Card>
       </div>
 
@@ -237,10 +242,10 @@ export function StatsDashboard() {
           <div className="mt-3 space-y-3">
             {activityRows.length > 0 ? (
               activityRows.map((activity) => (
-                <div key={activity.id} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
-                  <span className="font-mono uppercase tracking-[0.12em]">{activity.name}</span>
-                  <span className="font-mono font-semibold">{activity.hours} hr</span>
-                </div>
+              <div key={activity.id} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
+                <span className="font-mono uppercase tracking-[0.12em]">{activity.name}</span>
+                <span className="font-mono font-semibold">{activity.hours} hr</span>
+              </div>
               ))
             ) : (
               <div className="rounded-sm border border-white/10 bg-black/45 px-4 py-3 text-sm soft-text">
@@ -261,7 +266,7 @@ export function StatsDashboard() {
                   <span className="font-mono uppercase tracking-[0.08em]">{user.name}</span>
                 </div>
                 <div className="flex items-center gap-1 font-mono font-semibold">
-                  <span>{user.streakDays}</span>
+                  <span>{user.score}</span>
                   <Flame className="h-4 w-4 text-[var(--accent-2)]" />
                 </div>
               </div>
