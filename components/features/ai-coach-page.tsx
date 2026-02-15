@@ -36,6 +36,63 @@ export function AICoachPage() {
   const activeUserId = useMemo(() => userEmail?.trim().toLowerCase() || 'demo', [userEmail]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const loadChatHistory = async () => {
+      try {
+        const params = new URLSearchParams({ userId: activeUserId, limit: '50' });
+        const response = await fetch(`/api/coach/history?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error(`History API failed (${response.status})`);
+        }
+
+        const data = (await response.json()) as {
+          messages?: {
+            id?: number;
+            question?: string;
+            answer?: string;
+          }[];
+        };
+
+        if (cancelled) return;
+
+        const hydrated: ChatMessage[] = [];
+        for (const item of data.messages ?? []) {
+          if (typeof item.question === 'string' && item.question.trim()) {
+            hydrated.push({
+              id: `h-${item.id ?? Date.now()}-u`,
+              role: 'user',
+              text: item.question
+            });
+          }
+          if (typeof item.answer === 'string' && item.answer.trim()) {
+            hydrated.push({
+              id: `h-${item.id ?? Date.now()}-a`,
+              role: 'assistant',
+              text: item.answer
+            });
+          }
+        }
+
+        setMessages(hydrated);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Chat history fetch failed:', error);
+      }
+    };
+
+    void loadChatHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeUserId]);
+
+  useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 

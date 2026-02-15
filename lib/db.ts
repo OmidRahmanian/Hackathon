@@ -250,6 +250,35 @@ export async function saveCoachChatMessage(params: {
   }
 }
 
+export async function getCoachChatHistory(params: {
+  userId?: string;
+  limit?: number;
+}): Promise<CoachChatHistoryRow[]> {
+  try {
+    await ensureCoachChatHistoryTable();
+    const userIdentifier = normalizeCoachUserIdentifier(params.userId);
+    const rawLimit = Number(params.limit ?? 30);
+    const safeLimit = Math.max(1, Math.min(100, Math.floor(rawLimit)));
+
+    const result = await query<CoachChatHistoryRow>(
+      `
+        SELECT *
+        FROM coach_chat_history
+        WHERE user_identifier = $1
+        ORDER BY created_at DESC, id DESC
+        LIMIT $2;
+      `,
+      [userIdentifier, safeLimit]
+    );
+
+    // API/UI render chat in chronological order.
+    return result.rows.reverse();
+  } catch (error) {
+    console.error("DB coach history read failed:", error);
+    return [];
+  }
+}
+
 let coachWeeklyTableInit: Promise<void> | null = null;
 
 async function ensureCoachWeeklyRecommendationTable() {
