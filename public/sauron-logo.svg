@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="ring" x1="64" y1="64" x2="448" y2="448" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.5" stop-color="#bfbfbf"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="80" fill="transparent"/>
+  <path d="M256 78c91 0 166 75 166 166s-75 166-166 166S90 335 90 244 165 78 256 78z" stroke="url(#ring)" stroke-width="18" opacity="0.9"/>
+  <path d="M256 112c73 0 132 59 132 132s-59 132-132 132-132-59-132-132 59-132 132-132z" stroke="#d9d9d9" stroke-width="8" opacity="0.65"/>
+  <path d="M116 256c38-30 80-45 140-45s102 15 140 45c-38 30-80 45-140 45s-102-15-140-45z" stroke="#efefef" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M138 256h236" stroke="#efefef" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="42" fill="#efefef"/>
+  <path d="M256 212v88" stroke="#020204" stroke-width="8" stroke-linecap="round"/>
+  <path d="M233 236c6-9 14-14 23-14s17 5 23 14" stroke="#020204" stroke-width="8" stroke-linecap="round"/>
+  <path d="M232 271c6 8 14 13 24 13 9 0 17-5 23-13" stroke="#020204" stroke-width="8" stroke-linecap="round"/>
+  <path d="M256 215c-11 0-20 9-20 20 0 11 9 20 20 20 11 0 20 9 20 20 0 11-9 20-20 20" stroke="#020204" stroke-width="7" stroke-linecap="round"/>
+  <path d="M256 206v101" stroke="#020204" stroke-width="7" stroke-linecap="round"/>
+</svg>

@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus } from 'lucide-react';
+import { LogOut, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -289,11 +289,11 @@ export function ProfilePage() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-      <Card>
+      <Card className="tech-card">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-2xl font-semibold">Profile</h1>
+          <h1 className="hud-title text-xl">Profile</h1>
           <Button variant="secondary" onClick={onSignOut} disabled={isProfileSaving}>
-            Sign Out
+            <LogOut className="mr-2 h-4 w-4" /> Sign Out
           </Button>
         </div>
         <p className="mt-1 text-xs soft-text">Connected account: {activeEmail}</p>
@@ -327,10 +327,10 @@ export function ProfilePage() {
         {passwordStatus ? <p className="mt-2 text-sm soft-text">{passwordStatus}</p> : null}
       </Card>
 
-      <Card>
+      <Card className="tech-card">
         <div className="flex items-center gap-2">
-          <UserPlus className="h-5 w-5 text-[var(--accent)] drop-shadow-[0_0_8px_rgba(0,255,65,0.35)]" />
-          <h2 className="text-xl font-semibold">Add Friend</h2>
+          <UserPlus className="h-5 w-5 text-[var(--accent)]" />
+          <h2 className="hud-title text-lg">Add Friend</h2>
         </div>
 
         <form onSubmit={addFriend} className="mt-4 space-y-3">
@@ -348,7 +348,7 @@ export function ProfilePage() {
         {friendStatus ? <p className="mt-3 text-sm soft-text">{friendStatus}</p> : null}
 
         <div className="mt-4 space-y-2">
-          <p className="text-xs font-mono uppercase tracking-[0.16em] soft-text">
+          <p className="text-xs font-mono uppercase tracking-[0.16em] text-[var(--text-soft)]">
             Your friends
           </p>
           {friends.length > 0 ? (
@@ -357,7 +357,7 @@ export function ProfilePage() {
                 key={`${friend.id}-${friend.username}`}
                 className="rounded-sm border border-white/10 bg-black/45 px-3 py-2"
               >
-                <p className="font-mono text-sm uppercase tracking-[0.08em]">
+                <p className="font-mono text-sm uppercase tracking-[0.08em] text-[var(--text)]">
                   {friend.displayName}
                 </p>
                 <p className="text-xs soft-text">

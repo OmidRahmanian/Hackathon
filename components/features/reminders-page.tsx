@@ -101,7 +101,7 @@ export function RemindersPage() {
       setStatus(message);
 
       if (notificationPermission === 'granted' && 'Notification' in window) {
-        new Notification('PostureOS Reminder', {
+        new Notification('SAURON Reminder', {
           body: item.label
         });
       }
@@ -212,12 +212,12 @@ export function RemindersPage() {
 
   return (
     <>
-      <Card className="max-w-3xl">
+      <Card className="max-w-3xl tech-card">
         <div className="flex items-center gap-2">
-          <BellPlus className="h-5 w-5 text-[var(--accent)] drop-shadow-[0_0_8px_rgba(0,255,65,0.35)]" />
-          <h1 className="text-2xl font-semibold">Reminder Settings</h1>
+          <BellPlus className="h-5 w-5 text-[var(--accent)]" />
+          <h1 className="hud-title text-xl">Reminder Settings</h1>
         </div>
-        <p className="mt-1 text-sm soft-text">Enable reminders you want to receive and add your own custom reminders.</p>
+        <p className="mt-1 soft-text">Enable reminders you want to receive and add your own custom reminders.</p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button variant="secondary" onClick={requestNotificationAccess}>
             Enable Notifications
@@ -235,51 +235,51 @@ export function RemindersPage() {
               className="flex flex-col gap-3 rounded-sm border border-white/10 bg-black/45 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
               <div>
-                <p className="font-mono uppercase tracking-[0.12em]">{item.label}</p>
+                <p className="font-mono uppercase tracking-[0.12em] text-[var(--text)]">{item.label}</p>
                 {item.custom ? <p className="text-xs soft-text">Custom reminder</p> : null}
               </div>
               <div className="flex flex-col items-end gap-2">
                 <div className="flex items-center gap-2">
-                <label className="flex items-center gap-2">
-                  <span className="text-xs font-mono uppercase tracking-[0.12em] soft-text">Every</span>
-                  <select
-                    value={item.intervalSeconds}
-                    onChange={(event) =>
-                      updateReminderInterval(item.id, Number(event.target.value))
-                    }
-                    className="rounded-sm border border-white/15 bg-[#101a31]/80 px-2 py-1 text-xs font-mono text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                  <label className="flex items-center gap-2">
+                    <span className="text-xs font-mono uppercase tracking-[0.12em] text-[var(--text-soft)]">Every</span>
+                    <select
+                      value={item.intervalSeconds}
+                      onChange={(event) =>
+                        updateReminderInterval(item.id, Number(event.target.value))
+                      }
+                      className="rounded-sm border border-white/15 bg-black/70 px-2 py-1 text-xs font-mono text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                    >
+                      {intervalOptions.map((option) => (
+                        <option key={option.seconds} value={option.seconds}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <Button
+                    variant="secondary"
+                    className="px-2 py-1"
+                    onClick={() => openIntervalEditor(item.id)}
+                    aria-label={`Add custom interval for ${item.label}`}
                   >
-                    {intervalOptions.map((option) => (
-                      <option key={option.seconds} value={option.seconds}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button
-                  variant="secondary"
-                  className="px-2 py-1"
-                  onClick={() => openIntervalEditor(item.id)}
-                  aria-label={`Add custom interval for ${item.label}`}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </Button>
+                    <Plus className="h-3.5 w-3.5" />
+                  </Button>
 
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={item.enabled}
-                  aria-label={`Toggle ${item.label}`}
-                  onClick={() => toggleReminder(item.id)}
-                  className={`relative h-7 w-12 rounded-sm border transition-colors duration-75 focus:outline-none focus:ring-1 focus:ring-[var(--accent)] ${
-                    item.enabled ? 'border-[var(--accent)] bg-[var(--accent)] shadow-[0_0_10px_rgba(0,255,65,0.25)]' : 'border-white/20 bg-black/70'
-                  }`}
-                >
-                  <span
-                    className={`absolute left-1 top-1 h-5 w-5 rounded-sm border border-white/30 bg-[#eee] transition-transform duration-75 ${item.enabled ? 'translate-x-5' : 'translate-x-0'}`}
-                  />
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={item.enabled}
+                    aria-label={`Toggle ${item.label}`}
+                    onClick={() => toggleReminder(item.id)}
+                    className={`relative h-7 w-12 rounded-sm border transition-colors duration-75 focus:outline-none focus:ring-1 focus:ring-[var(--accent)] ${
+                      item.enabled ? 'border-[var(--accent)] bg-[var(--accent)] shadow-[0_0_10px_rgba(0,255,65,0.25)]' : 'border-white/20 bg-black/70'
+                    }`}
+                  >
+                    <span
+                      className={`absolute left-1 top-1 h-5 w-5 rounded-sm border border-white/30 bg-[#eee] transition-transform duration-75 ${item.enabled ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                  </button>
+                </div>
                 {editingIntervalForId === item.id ? (
                   <div className="flex items-center gap-2">
                     <Input
@@ -308,7 +308,7 @@ export function RemindersPage() {
         </div>
 
         <div className="mt-6 rounded-sm border border-white/10 bg-black/45 p-4">
-          <p className="mb-3 text-sm font-semibold">Add Personalized Reminder</p>
+          <p className="mb-3 hud-label">Add Personalized Reminder</p>
           <div className="flex gap-2">
             <Input
               value={customLabel}

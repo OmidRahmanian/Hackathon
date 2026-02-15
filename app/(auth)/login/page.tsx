@@ -1,9 +1,10 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Chrome } from 'lucide-react';
+import { Chrome, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -64,9 +65,16 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto max-w-md pt-8">
-      <Card>
-        <h1 className="text-2xl font-semibold">Sign in</h1>
-        <p className="mt-1 text-sm soft-text">Enter email and password, or continue with Google.</p>
+      <Card className="tech-card">
+        <div className="mb-3 flex items-center gap-3 rounded-sm border border-white/10 bg-black/55 px-3 py-2">
+          <Image src="/sauron-logo.svg" alt="Sauron logo" width={26} height={26} className="object-contain" priority />
+          <p className="hud-label text-[var(--text)]">SAURON</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <LogIn className="h-5 w-5 text-[var(--accent)]" />
+          <h1 className="hud-title text-xl">Sign In</h1>
+        </div>
+        <p className="mt-1 soft-text">Enter email and password, or continue with Google.</p>
 
         <form onSubmit={handleLogin} className="mt-5 space-y-3">
           <Input
@@ -94,7 +102,7 @@ export default function LoginPage() {
 
         <p className="mt-4 text-center text-xs soft-text">
           New here?{' '}
-          <Link href="/signup" className="text-[#eee] underline">
+          <Link href="/signup" className="text-[var(--text)] underline underline-offset-2">
             Create account
           </Link>
         </p>

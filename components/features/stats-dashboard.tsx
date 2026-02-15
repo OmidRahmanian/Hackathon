@@ -204,13 +204,18 @@ export function StatsDashboard() {
   return (
     <div className="space-y-5">
       <div className="grid gap-5 md:grid-cols-2">
-        <Card>
-          <p className="text-sm soft-text">Time Range</p>
-          <h2 className="mt-1 font-mono text-xl font-semibold">{timeRangeLabel}</h2>
+        <Card className="tech-card">
+          <p className="hud-label">Time Range</p>
+          <h2 className="mt-2 font-mono text-2xl font-bold tracking-[0.08em] text-[var(--text)]">{timeRangeLabel}</h2>
           <div className="mt-4 grid grid-cols-1 gap-3">
             <div className="rounded-sm border border-white/10 bg-black/45 p-4">
-              <p className="text-sm soft-text">User Failiure</p>
-              <motion.p key={stats.userFailureCount} initial={{ scale: 1.08 }} animate={{ scale: 1 }} className="mt-1 font-mono text-3xl font-bold text-[var(--accent-3)]">
+              <p className="hud-label">User Failures</p>
+              <motion.p
+                key={stats.userFailureCount}
+                initial={{ scale: 1.08 }}
+                animate={{ scale: 1 }}
+                className="mt-2 font-mono text-3xl font-bold text-[var(--accent-3)]"
+              >
                 {stats.userFailureCount}
               </motion.p>
               {statsLoading ? <p className="mt-1 text-xs soft-text">Loading...</p> : null}
@@ -219,39 +224,39 @@ export function StatsDashboard() {
           </div>
         </Card>
 
-        <Card>
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Current Score</h3>
+        <Card className="tech-card">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="hud-title text-lg">Current Streak</h3>
             <Button variant="secondary" onClick={() => setShareOpen(true)}>
               <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
           </div>
           <div className="mt-8 flex items-center justify-center gap-3 rounded-sm border border-white/10 bg-black/45 py-8">
-            <span className="font-mono text-5xl font-extrabold">{currentScore}</span>
+            <span className="font-mono text-5xl font-extrabold text-[var(--text)]">{currentScore}</span>
             <Flame className="h-10 w-10 text-[var(--accent-2)]" />
           </div>
-          <p className="mt-4 text-sm soft-text">Your score updates after each session.</p>
+          <p className="mt-4 soft-text">Your score updates after each session.</p>
         </Card>
       </div>
 
-      <Card>
-        <h3 className="text-lg font-semibold">Real-Time Trend</h3>
-        <p className="mt-1 text-sm soft-text">Posture event trend for the selected time window</p>
-        <div className="mt-4">
+      <Card className="tech-card">
+        <h3 className="hud-title text-lg">Real-Time Trend</h3>
+        <p className="mt-1 soft-text">Posture event trend for the selected time window</p>
+        <div className="mt-4 rounded-sm border border-white/10 bg-black/35 p-3">
           <Line data={chartData} options={chartOptions} />
         </div>
       </Card>
 
       <div className="grid gap-5 lg:grid-cols-2">
-        <Card>
-          <h3 className="text-lg font-semibold">Activity Hours</h3>
+        <Card className="tech-card">
+          <h3 className="hud-title text-lg">Activity Hours</h3>
           <div className="mt-3 space-y-3">
             {activityRows.length > 0 ? (
               activityRows.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
-                <span className="font-mono uppercase tracking-[0.12em]">{activity.name}</span>
-                <span className="font-mono font-semibold">{formatHours(activity.hours)} hr</span>
-              </div>
+                <div key={activity.id} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
+                  <span className="font-mono uppercase tracking-[0.12em] text-[var(--text)]">{activity.name}</span>
+                  <span className="font-mono font-semibold text-[var(--text)]">{formatHours(activity.hours)} hr</span>
+                </div>
               ))
             ) : (
               <div className="rounded-sm border border-white/10 bg-black/45 px-4 py-3 text-sm soft-text">
@@ -261,15 +266,15 @@ export function StatsDashboard() {
           </div>
         </Card>
 
-        <Card>
-          <h3 className="text-lg font-semibold">Friends Leaderboard</h3>
+        <Card className="tech-card">
+          <h3 className="hud-title text-lg">Friends Leaderboard</h3>
           <div className="mt-3 space-y-3">
             {leaderboardUsers.map((user, index) => (
               <div key={`${user.name}-${index}`} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <span className="w-4 font-mono text-sm soft-text">{index + 1}</span>
-                  <Image src={`/avatar-${(index % 4) + 1}.svg`} alt={user.name} width={36} height={36} className="rounded-full" />
-                  <span className="font-mono uppercase tracking-[0.08em]">{user.name}</span>
+                  <span className="w-4 font-mono text-sm text-[var(--text-soft)]">{index + 1}</span>
+                  <Image src={`/avatar-${(index % 4) + 1}.svg`} alt={user.name} width={36} height={36} className="rounded-sm border border-white/10" />
+                  <span className="font-mono uppercase tracking-[0.08em] text-[var(--text)]">{user.name}</span>
                 </div>
                 <div className="flex items-center gap-1 font-mono font-semibold">
                   <span>{user.score}</span>
@@ -305,7 +310,7 @@ function SharePopup({ open, onClose }: { open: boolean; onClose: () => void }) {
 
     context.fillStyle = '#00ff41';
     context.font = 'bold 68px Inter';
-    context.fillText('PostureOS Achievements', 100, 150);
+    context.fillText('SAURON Achievements', 100, 150);
 
     context.fillStyle = '#eee';
     context.font = '40px Inter';
@@ -321,11 +326,11 @@ function SharePopup({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <h4 className="text-lg font-semibold">Share achievements</h4>
-      <p className="mt-1 text-sm soft-text">Save your current achievements as a share card image.</p>
+      <h4 className="hud-title text-lg">Share Achievements</h4>
+      <p className="mt-1 soft-text">Save your current achievements as a share card image.</p>
       <div className="mt-4 space-y-2">
         {achievements.map((achievement) => (
-          <div key={achievement} className="rounded-sm border border-white/10 bg-black/45 px-3 py-2 font-mono text-sm">
+          <div key={achievement} className="rounded-sm border border-white/10 bg-black/45 px-3 py-2 font-mono text-sm text-[var(--text)]">
             {achievement}
           </div>
         ))}
