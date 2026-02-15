@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils/cn';
+import { useAuth } from '@/components/features/auth-provider';
 
 const activities = ['Studying', 'Browsing', 'Multimedia'] as const;
-const EVENT_USER_ID = 'demo';
 const EVENT_DEBOUNCE_MS = 10_000;
 
 type MonitorEventType =
@@ -17,6 +17,7 @@ type MonitorEventType =
   | 'TOO_CLOSE';
 
 export function MonitorPage() {
+  const { userEmail } = useAuth();
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
   const [isOn, setIsOn] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,6 +26,10 @@ export function MonitorPage() {
   const seenLogLinesRef = useRef<Set<string>>(new Set());
   const lastBadPostureEventAtRef = useRef(0);
   const lastTooCloseEventAtRef = useRef(0);
+  const eventUserId = useMemo(() => {
+    const normalized = userEmail?.trim().toLowerCase();
+    return normalized && normalized.length > 0 ? normalized : 'demo';
+  }, [userEmail]);
 
   const postEvent = async (type: MonitorEventType, activity?: string | null) => {
     try {
@@ -32,7 +37,7 @@ export function MonitorPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: EVENT_USER_ID,
+          userId: eventUserId,
           type,
           activity: activity ?? undefined
         })

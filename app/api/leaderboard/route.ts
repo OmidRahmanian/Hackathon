@@ -9,16 +9,14 @@ export async function GET() {
   const entries =
     rows.length > 0
       ? rows.map((row) => ({
-          name: row.username,
-          streakDays: row.streak,
-          // TODO: map DB score once available; using rank as placeholder score.
-          score: row.rank,
+          name: row.username ?? "Unknown",
+          score: row.score ?? 0,
         }))
       : [
           // Fallback keeps endpoint stable if DB is unavailable.
-          { name: "Gigi", streakDays: 3, score: 120 },
-          { name: "Sahand", streakDays: 2, score: 90 },
-          { name: "Omid", streakDays: 1, score: 60 },
+          { name: "Gigi", score: 120 },
+          { name: "Sahand", score: 90 },
+          { name: "Omid", score: 60 },
         ];
 
   return Response.json({

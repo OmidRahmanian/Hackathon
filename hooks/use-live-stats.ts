@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/components/features/auth-provider';
 
 type StatsSummaryResponse = {
   userId: string;
   timeRange: { from: number; to: number };
   range: 'day' | 'week';
+  userScore: number;
   badPostureCount: number;
   tooCloseCount: number;
   scoreAverage: number;
@@ -19,6 +21,7 @@ const ZERO_STATS: StatsSummaryResponse = {
   userId: 'demo',
   timeRange: { from: 0, to: 0 },
   range: 'day',
+  userScore: 0,
   badPostureCount: 0,
   tooCloseCount: 0,
   scoreAverage: 0,
@@ -29,9 +32,14 @@ const ZERO_STATS: StatsSummaryResponse = {
 };
 
 export function useLiveStats() {
+  const { userEmail } = useAuth();
   const [stats, setStats] = useState<StatsSummaryResponse>(ZERO_STATS);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const activeUserId = useMemo(() => {
+    const normalized = userEmail?.trim().toLowerCase();
+    return normalized && normalized.length > 0 ? normalized : 'demo';
+  }, [userEmail]);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,7 +48,11 @@ export function useLiveStats() {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/stats/summary?userId=demo&range=day', {
+        const params = new URLSearchParams({
+          userId: activeUserId,
+          range: 'day'
+        });
+        const response = await fetch(`/api/stats/summary?${params.toString()}`, {
           method: 'GET',
           cache: 'no-store'
         });
@@ -73,7 +85,7 @@ export function useLiveStats() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [activeUserId]);
 
   const summary = useMemo(() => {
     const entries = Object.values(stats.activityBreakdown);

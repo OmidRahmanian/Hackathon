@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { getUserHistory } from "@/lib/db";
+import { getUserHistory, getUserScore } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -19,11 +19,11 @@ export async function GET(req: NextRequest) {
   const fromTs = toTs - windowSize;
 
   const history = await getUserHistory(userId, fromTs, toTs);
+  const userScore = await getUserScore(userId);
 
   const badPostureCount = history.reduce((sum, row) => sum + (row.bad_pos ?? 0), 0);
-  const totalScore = history.reduce((sum, row) => sum + (row.score ?? 0), 0);
-  const tooCloseCount = totalScore; // Using score as proxy for too-close events per spec.
-  const scoreAverage = history.length > 0 ? totalScore / history.length : 0;
+  const tooCloseCount = history.reduce((sum, row) => sum + (row.too_close_count ?? 0), 0);
+  const scoreAverage = history.length > 0 ? tooCloseCount / history.length : 0;
 
   const activityBreakdown = history.reduce<Record<string, number>>((acc, row) => {
     if (row.topic) {
@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
     userId,
     timeRange: { from: fromTs, to: toTs },
     range,
+    userScore,
     badPostureCount,
     tooCloseCount,
     scoreAverage,

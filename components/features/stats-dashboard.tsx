@@ -68,9 +68,7 @@ export function StatsDashboard() {
   const [shareOpen, setShareOpen] = useState(false);
   const [timeRangeLabel, setTimeRangeLabel] = useState(getCurrentHourRangeLabel(new Date()));
   const [trendLabels, setTrendLabels] = useState(getCurrentHourTrendLabels(new Date()));
-  const [leaderboardUsers, setLeaderboardUsers] = useState<
-    { name: string; streakDays: number; score: number }[]
-  >([]);
+  const [leaderboardUsers, setLeaderboardUsers] = useState<{ name: string; score: number }[]>([]);
   const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -107,7 +105,7 @@ export function StatsDashboard() {
         }
 
         const data = (await response.json()) as {
-          entries?: { name?: string; streakDays?: number; score?: number }[];
+          entries?: { name?: string; score?: number }[];
         };
 
         if (cancelled) return;
@@ -115,7 +113,6 @@ export function StatsDashboard() {
         const entries = Array.isArray(data.entries)
           ? data.entries.map((entry) => ({
               name: entry.name ?? 'Unknown',
-              streakDays: Number(entry.streakDays ?? 0),
               score: Number(entry.score ?? 0)
             }))
           : [];
@@ -196,7 +193,7 @@ export function StatsDashboard() {
     }
   };
 
-  const currentStreak = 2;
+  const currentScore = stats.userScore;
 
   return (
     <div className="space-y-5">
@@ -218,16 +215,16 @@ export function StatsDashboard() {
 
         <Card>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Current Streak</h3>
+            <h3 className="text-lg font-semibold">Current Score</h3>
             <Button variant="secondary" onClick={() => setShareOpen(true)}>
               <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
           </div>
           <div className="mt-8 flex items-center justify-center gap-3 rounded-sm border border-white/10 bg-black/45 py-8">
-            <span className="font-mono text-5xl font-extrabold">#{currentStreak}</span>
+            <span className="font-mono text-5xl font-extrabold">{currentScore}</span>
             <Flame className="h-10 w-10 text-[var(--accent-2)]" />
           </div>
-          <p className="mt-4 text-sm soft-text">Keep this up today to protect your streak.</p>
+          <p className="mt-4 text-sm soft-text">Your score updates after each session.</p>
         </Card>
       </div>
 
@@ -269,7 +266,7 @@ export function StatsDashboard() {
                   <span className="font-mono uppercase tracking-[0.08em]">{user.name}</span>
                 </div>
                 <div className="flex items-center gap-1 font-mono font-semibold">
-                  <span>{user.streakDays}</span>
+                  <span>{user.score}</span>
                   <Flame className="h-4 w-4 text-[var(--accent-2)]" />
                 </div>
               </div>

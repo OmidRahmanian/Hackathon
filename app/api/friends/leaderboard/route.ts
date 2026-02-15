@@ -9,16 +9,15 @@ type FriendRow = {
   email: string | null;
 };
 
-type LeaderboardRow = {
+type UserScoreRow = {
+  email: string | null;
   username: string | null;
-  streak: number | null;
-  rank: number | null;
+  score: number | null;
 };
 
 type FriendLeaderboardEntry = {
   name: string;
   username: string;
-  streakDays: number;
   score: number;
 };
 
@@ -57,44 +56,48 @@ export async function GET(req: NextRequest) {
   const usernames = friends
     .map((row) => row.username?.trim().toLowerCase() ?? '')
     .filter(Boolean);
+  const friendEmails = friends
+    .map((row) => row.email?.trim().toLowerCase() ?? '')
+    .filter(Boolean);
 
-  const leaderboardResult = await query<LeaderboardRow>(
+  const userScoreResult = await query<UserScoreRow>(
     `
-      SELECT username, streak, rank
-      FROM leaderboard
-      WHERE LOWER(username) = ANY($1::text[]);
+      SELECT email, username, score
+      FROM users
+      WHERE LOWER(email) = ANY($1::text[])
+         OR LOWER(username) = ANY($2::text[]);
     `,
-    [usernames]
+    [friendEmails, usernames]
   );
 
-  const leaderboardByUsername = new Map(
-    leaderboardResult.rows.map((row) => [
+  const scoreByEmail = new Map(
+    userScoreResult.rows.map((row) => [
+      row.email?.trim().toLowerCase() ?? '',
+      Number(row.score ?? 0)
+    ])
+  );
+  const scoreByUsername = new Map(
+    userScoreResult.rows.map((row) => [
       row.username?.trim().toLowerCase() ?? '',
-      {
-        streak: Number(row.streak ?? 0),
-        rank: Number(row.rank ?? 0)
-      }
+      Number(row.score ?? 0)
     ])
   );
 
   const entries: FriendLeaderboardEntry[] = friends.map((friend) => {
-    const username = friend.username?.trim().toLowerCase() ?? '';
-    const lb = leaderboardByUsername.get(username);
+    const usernameKey = friend.username?.trim().toLowerCase() ?? '';
+    const emailKey = friend.email?.trim().toLowerCase() ?? '';
+    const score = scoreByEmail.get(emailKey) ?? scoreByUsername.get(usernameKey) ?? 0;
 
     return {
-      name: friend.lastname?.trim() || friend.username?.trim() || friend.email?.trim() || 'Unknown',
-      username,
-      streakDays: lb?.streak ?? 0,
-      score: lb?.rank ?? 0
+      name:
+        friend.lastname?.trim() || friend.username?.trim() || friend.email?.trim() || 'Unknown',
+      username: usernameKey,
+      score
     };
   });
 
   entries.sort((a, b) => {
-    const aHasRank = a.score > 0;
-    const bHasRank = b.score > 0;
-    if (aHasRank !== bHasRank) return aHasRank ? -1 : 1;
-    if (aHasRank && bHasRank && a.score !== b.score) return a.score - b.score;
-    if (a.streakDays !== b.streakDays) return b.streakDays - a.streakDays;
+    if (a.score !== b.score) return b.score - a.score;
     return a.name.localeCompare(b.name);
   });
 
