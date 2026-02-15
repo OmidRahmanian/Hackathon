@@ -188,7 +188,7 @@ export function StatsDashboard() {
     }
   };
 
-  const currentStreak = 2;
+  const currentScore = Math.round(stats.scoreAverage);
 
   return (
     <div className="space-y-5">
@@ -210,16 +210,16 @@ export function StatsDashboard() {
 
         <Card>
           <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Current Streak</h3>
+            <h3 className="text-lg font-semibold">Current Score</h3>
             <Button variant="secondary" onClick={() => setShareOpen(true)}>
               <Share2 className="mr-2 h-4 w-4" /> Share
             </Button>
           </div>
           <div className="mt-8 flex items-center justify-center gap-3 rounded-sm border border-white/10 bg-black/45 py-8">
-            <span className="font-mono text-5xl font-extrabold">#{currentStreak}</span>
+            <span className="font-mono text-5xl font-extrabold">#{currentScore}</span>
             <Flame className="h-10 w-10 text-[var(--accent-2)]" />
           </div>
-          <p className="mt-4 text-sm soft-text">Keep this up today to protect your streak.</p>
+          <p className="mt-4 text-sm soft-text">Keep this up today to improve your score.</p>
         </Card>
       </div>
 

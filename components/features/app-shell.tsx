@@ -38,15 +38,19 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!isAuthenticated && !isAuthRoute) {
       router.replace('/login');
     }
+
+    if (isAuthenticated && isAuthRoute) {
+      router.replace('/dashboard');
+    }
   }, [ready, isAuthenticated, isAuthRoute, router]);
 
-  const navItems = items.filter((item) => {
-    if (isAuthenticated) return item.href !== '/login' && item.href !== '/signup';
-    return item.href === '/login' || item.href === '/signup';
-  });
+  // Hide all navigation until the user is authenticated.
+  const navItems = isAuthenticated
+    ? items.filter((item) => item.href !== '/login' && item.href !== '/signup')
+    : [];
 
   const hideContentDuringRedirect =
-    ready && !isAuthenticated && !isAuthRoute;
+    ready && ((!isAuthenticated && !isAuthRoute) || (isAuthenticated && isAuthRoute));
 
   if (!ready || hideContentDuringRedirect) {
     return (
@@ -68,28 +72,30 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <span className="font-mono uppercase text-[#eee]">PostureOS</span>
           </div>
-          <nav className="flex flex-wrap items-center gap-1 rounded-sm border border-white/10 bg-black/55 p-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          {navItems.length > 0 ? (
+            <nav className="flex flex-wrap items-center gap-1 rounded-sm border border-white/10 bg-black/55 p-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'flex items-center gap-2 rounded-sm border px-3 py-2 font-mono text-xs font-bold uppercase tracking-[0.14em] transition-all duration-75',
-                    active
-                      ? 'border-[var(--accent)] bg-[var(--accent)] text-black shadow-[0_0_10px_rgba(0,255,65,0.3)]'
-                      : 'border-white/10 bg-black/45 text-[#666] hover:bg-white hover:text-black'
-                  )}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'flex items-center gap-2 rounded-sm border px-3 py-2 font-mono text-xs font-bold uppercase tracking-[0.14em] transition-all duration-75',
+                      active
+                        ? 'border-[var(--accent)] bg-[var(--accent)] text-black shadow-[0_0_10px_rgba(0,255,65,0.3)]'
+                        : 'border-white/10 bg-black/45 text-[#666] hover:bg-white hover:text-black'
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : null}
         </div>
       </header>
       <main className="page-fade mx-auto w-full max-w-7xl px-5 py-6">{children}</main>
