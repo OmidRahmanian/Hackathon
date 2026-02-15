@@ -299,27 +299,27 @@ export function AICoachPage() {
         <div className="absolute -right-16 bottom-4 h-64 w-64 rounded-full bg-[var(--accent-3)]/10 blur-3xl" />
       </div>
 
-      <div className="relative grid gap-5 xl:h-full xl:grid-cols-2 xl:items-stretch">
+      <div className="relative grid min-h-0 gap-5 xl:h-full xl:grid-cols-2 xl:items-stretch">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28, ease: 'easeOut' }}
-          className="xl:h-full"
+          className="min-h-0 xl:h-full"
         >
-          <Card className="tech-card relative flex h-full flex-col overflow-hidden">
+          <Card className="tech-card relative flex h-full min-h-0 flex-col overflow-hidden">
             <div className="pointer-events-none absolute inset-0 opacity-40">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(0,255,65,0.09),transparent_45%)]" />
               <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_15px,rgba(255,255,255,0.03)_16px)]" />
             </div>
 
-            <div className="relative flex h-full flex-col">
+            <div className="relative flex h-full min-h-0 flex-col">
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-[var(--accent)]" />
                 <h1 className="hud-title text-xl">Ask Me Anything</h1>
               </div>
 
-              <div className="relative flex-1">
-                <div ref={messagesContainerRef} className="h-full space-y-3 overflow-y-auto pr-1">
+              <div className="relative flex-1 min-h-0">
+                <div ref={messagesContainerRef} className="h-full min-h-0 space-y-3 overflow-y-auto pr-1">
                   {messages.length === 0 ? (
                     <div className="rounded-sm border border-dashed border-white/15 bg-black/35 p-4">
                       <p className="text-xs soft-text">No messages yet</p>
