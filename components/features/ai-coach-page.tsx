@@ -7,6 +7,7 @@ import { ChatMessage } from '@/types/app';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/components/features/auth-provider';
 
 const LOCALHOST_URL_ONLY_PATTERN = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/?$/i;
 
@@ -20,13 +21,19 @@ function isInvalidCoachResponse(text: string) {
 }
 
 export function AICoachPage() {
+  const { userEmail } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [weeklyRecommendation, setWeeklyRecommendation] = useState<string | null>(null);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [recommendationError, setRecommendationError] = useState<string | null>(null);
+  const [recommendationGeneratedAt, setRecommendationGeneratedAt] = useState<string | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [showRecommendationScrollButton, setShowRecommendationScrollButton] = useState(false);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const recommendationContainerRef = useRef<HTMLDivElement | null>(null);
+  const activeUserId = useMemo(() => userEmail?.trim().toLowerCase() || 'demo', [userEmail]);
 
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -67,15 +74,79 @@ export function AICoachPage() {
     [messages]
   );
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadRecommendation = async () => {
+      try {
+        setRecommendationLoading(true);
+        setRecommendationError(null);
+
+        const params = new URLSearchParams({ userId: activeUserId });
+        const response = await fetch(`/api/coach/recommendation?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Recommendation API failed (${response.status})`);
+        }
+
+        const data = (await response.json()) as {
+          recommendation?: string;
+          generatedAt?: string | null;
+        };
+
+        if (cancelled) return;
+
+        const recommendationText =
+          typeof data.recommendation === 'string' && data.recommendation.trim()
+            ? data.recommendation.trim()
+            : null;
+
+        setWeeklyRecommendation(recommendationText);
+        setRecommendationGeneratedAt(
+          typeof data.generatedAt === 'string' && data.generatedAt.trim()
+            ? data.generatedAt
+            : null
+        );
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Weekly recommendation fetch failed:', error);
+        setRecommendationError('Unable to load weekly recommendation right now.');
+      } finally {
+        if (!cancelled) {
+          setRecommendationLoading(false);
+        }
+      }
+    };
+
+    void loadRecommendation();
+    const interval = window.setInterval(() => {
+      void loadRecommendation();
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [activeUserId]);
+
   const recommendationText = useMemo(() => {
-    if (!lastUserMessage) {
-      return 'The AI recommendation engine will generate personalized guidance based on your activity and recent prompts. Start by asking a question in the panel on the left, then use those insights to improve your posture habits and daily workflow consistency.';
+    if (recommendationLoading && !weeklyRecommendation) {
+      return 'Building your weekly recommendation from your profile and monitoring history...';
     }
 
-    const promptPreview = lastUserMessage.slice(0, 120);
-    const suffix = lastUserMessage.length > 120 ? '...' : '';
-    return `Based on your latest prompt ("${promptPreview}${suffix}"), focus on one practical change for your next session, keep your setup ergonomic, and re-check posture every 25 minutes. Use this as your single action plan for the current cycle.`;
-  }, [lastUserMessage]);
+    if (weeklyRecommendation) {
+      return weeklyRecommendation;
+    }
+
+    if (recommendationError) {
+      return recommendationError;
+    }
+
+    return 'No monitoring data yet. Start your first monitoring session and this panel will show your weekly AI recommendation.';
+  }, [recommendationLoading, weeklyRecommendation, recommendationError]);
 
   useEffect(() => {
     const container = recommendationContainerRef.current;
@@ -126,7 +197,8 @@ export function AICoachPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question: text
+          question: text,
+          userId: activeUserId
         })
       });
 
@@ -270,6 +342,14 @@ export function AICoachPage() {
                   className="h-full overflow-y-auto rounded-sm border border-white/10 bg-black/45 p-6 pr-8"
                 >
                   <p className="text-sm leading-relaxed text-[var(--text)]">{recommendationText}</p>
+                  {recommendationGeneratedAt ? (
+                    <p className="mt-3 text-xs soft-text">
+                      Generated: {new Date(recommendationGeneratedAt).toLocaleString()}
+                    </p>
+                  ) : null}
+                  {lastUserMessage ? (
+                    <p className="mt-2 text-xs soft-text">Latest question: "{lastUserMessage}"</p>
+                  ) : null}
                 </div>
 
                 {showRecommendationScrollButton ? (
