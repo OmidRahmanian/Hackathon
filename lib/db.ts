@@ -111,10 +111,10 @@ async function recomputeAndPersistUserScore(userId: string, historyUserId: numbe
   const totalMinutes = Number(row?.total_minutes ?? 0);
   const badTotal = Number(row?.bad_total ?? 0);
   const tooCloseTotal = Number(row?.too_close_total ?? 0);
-  const nextScore = Math.max(
-    0,
-    Math.trunc(2 * (0.5 * totalMinutes) - 5 * ((badTotal + tooCloseTotal) / 2))
-  );
+  const qualityFailures = badTotal + 2 * tooCloseTotal;
+  const rawScore =
+    20 + 80 * (1 - Math.exp(-totalMinutes / 220)) - 0.7 * qualityFailures;
+  const nextScore = Math.max(0, Math.min(100, Math.round(rawScore)));
 
   await query(
     `
