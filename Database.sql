@@ -57,3 +57,28 @@ CREATE TABLE leaderboard (
     streak INT,
     rank INT
 );
+
+CREATE TABLE IF NOT EXISTS coach_chat_history (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE SET NULL,
+    user_identifier VARCHAR(255) NOT NULL,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    model VARCHAR(100),
+    used_fallback BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_coach_chat_history_user_identifier_created_at
+    ON coach_chat_history (user_identifier, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS coach_weekly_recommendations (
+    id SERIAL PRIMARY KEY,
+    user_id INT REFERENCES users(id) ON DELETE SET NULL,
+    user_identifier VARCHAR(255) NOT NULL UNIQUE,
+    recommendation TEXT NOT NULL,
+    model VARCHAR(100),
+    source_latest_data_at TIMESTAMP,
+    generated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_coach_weekly_recommendations_user_identifier
+    ON coach_weekly_recommendations (user_identifier);
