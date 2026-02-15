@@ -10,6 +10,8 @@ export type EventType =
   | "TOO_CLOSE"
   | "ACTIVITY_SET";
 
+export type FailureType = "BAD_POSTURE" | "TOO_CLOSE";
+
 export type HistoryRow = {
   id: number;
   history_id: number;
@@ -19,6 +21,7 @@ export type HistoryRow = {
   bad_pos: number | null;
   streak_count: boolean | null;
   score: number | null;
+  failure_type: FailureType | null;
 };
 
 export type StreakRow = {
@@ -82,28 +85,32 @@ export async function insertHistoryEvent(params: {
   let badPosInc = 0;
   let scoreInc = 0;
   let streakCount: boolean | null = null;
+  let failureType: FailureType | null = null;
 
   if (params.type === "BAD_POSTURE") {
     badPosInc = 1;
     scoreInc = 1; // TODO: confirm scoring rule for bad posture.
+    failureType = "BAD_POSTURE";
   } else if (params.type === "TOO_CLOSE") {
     scoreInc = 1;
     streakCount = true; // TODO: verify desired streak flag behavior.
+    failureType = "TOO_CLOSE";
   }
 
   const res = await query<HistoryRow>(
     `
-    INSERT INTO history (history_id, start_date, end_date, topic, bad_pos, streak_count, score)
-    VALUES ($1, to_timestamp($2), to_timestamp($2), $3, $4, $5, $6)
+    INSERT INTO history (history_id, start_date, end_date, topic, bad_pos, streak_count, score, failure_type)
+    VALUES ($1, to_timestamp($2), to_timestamp($2), $3, $4, $5, $6, $7)
     ON CONFLICT (history_id) DO UPDATE SET
       end_date = GREATEST(history.end_date, EXCLUDED.end_date),
       topic = COALESCE(EXCLUDED.topic, history.topic),
       bad_pos = COALESCE(history.bad_pos, 0) + COALESCE(EXCLUDED.bad_pos, 0),
       streak_count = COALESCE(EXCLUDED.streak_count, history.streak_count),
-      score = COALESCE(history.score, 0) + COALESCE(EXCLUDED.score, 0)
+      score = COALESCE(history.score, 0) + COALESCE(EXCLUDED.score, 0),
+      failure_type = COALESCE(EXCLUDED.failure_type, history.failure_type)
     RETURNING *;
   `,
-    [historyId, ts, topic, badPosInc, streakCount, scoreInc]
+    [historyId, ts, topic, badPosInc, streakCount, scoreInc, failureType]
   );
 
   if (res.rows.length === 0) return null;

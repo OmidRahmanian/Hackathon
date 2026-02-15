@@ -26,7 +26,8 @@ CREATE TABLE history (
     topic VARCHAR(255),
     bad_pos INT,
     streak_count BOOLEAN,
-    score INT
+    score INT,
+    failure_type VARCHAR(32) CHECK (failure_type IN ('BAD_POSTURE', 'TOO_CLOSE'))
 );
 
 CREATE TABLE streak (

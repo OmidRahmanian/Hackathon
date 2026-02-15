@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
     start_date: stored.start_date,
     end_date: stored.end_date,
     topic: stored.topic,
+    failure_type: stored.failure_type ?? null,
   };
 
   return Response.json({ ok: true, event: eventResponse });

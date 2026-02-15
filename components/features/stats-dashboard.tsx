@@ -19,6 +19,7 @@ import { achievements } from '@/lib/data/mock-data';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
+import { useAuth } from '@/components/features/auth-provider';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
@@ -63,6 +64,7 @@ function getCurrentHourTrendLabels(now: Date) {
 
 export function StatsDashboard() {
   const { stats, loading: statsLoading, error: statsError } = useLiveStats();
+  const { userEmail } = useAuth();
   const [shareOpen, setShareOpen] = useState(false);
   const [timeRangeLabel, setTimeRangeLabel] = useState(getCurrentHourRangeLabel(new Date()));
   const [trendLabels, setTrendLabels] = useState(getCurrentHourTrendLabels(new Date()));
@@ -87,9 +89,16 @@ export function StatsDashboard() {
     let cancelled = false;
 
     const loadLeaderboard = async () => {
+      if (!userEmail) {
+        setLeaderboardUsers([]);
+        setLeaderboardError('Sign in to view your friends leaderboard.');
+        return;
+      }
+
       try {
         setLeaderboardError(null);
-        const response = await fetch('/api/leaderboard', {
+        const params = new URLSearchParams({ userEmail });
+        const response = await fetch(`/api/friends/leaderboard?${params.toString()}`, {
           method: 'GET',
           cache: 'no-store'
         });
@@ -129,7 +138,7 @@ export function StatsDashboard() {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [userEmail]);
 
   const badPostureTimeline = useMemo(() => {
     const points = trendLabels.length;

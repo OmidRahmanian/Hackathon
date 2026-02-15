@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ChangeEvent, FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,123 @@ import { useAuth } from '@/components/features/auth-provider';
 
 export function ProfilePage() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, userEmail } = useAuth();
   const [name, setName] = useState('Your Name');
   const [bio, setBio] = useState('Building healthier desk habits one day at a time.');
   const [avatarSrc, setAvatarSrc] = useState('/avatar-1.svg');
-  const [friendEmail, setFriendEmail] = useState('');
-  const [status, setStatus] = useState('');
+  const [friendInput, setFriendInput] = useState('');
+  const [profileStatus, setProfileStatus] = useState('');
+  const [friendStatus, setFriendStatus] = useState('');
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [isFriendSaving, setIsFriendSaving] = useState(false);
+  const [friends, setFriends] = useState<
+    {
+      id: number;
+      displayName: string;
+      username: string;
+      email: string;
+    }[]
+  >([]);
+
+  const activeEmail = useMemo(() => {
+    if (userEmail && userEmail.includes('@')) return userEmail;
+    return 'demo@example.com';
+  }, [userEmail]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      try {
+        const params = new URLSearchParams({ email: activeEmail });
+        const response = await fetch(`/api/profile?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (cancelled) return;
+
+        if (response.status === 404) {
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Profile load failed (${response.status})`);
+        }
+
+        const data = (await response.json()) as {
+          profile?: {
+            name?: string;
+            bio?: string;
+          } | null;
+        };
+
+        if (!data.profile) return;
+        setName(data.profile.name?.trim() ? data.profile.name : 'Your Name');
+        setBio(
+          data.profile.bio?.trim()
+            ? data.profile.bio
+            : 'Building healthier desk habits one day at a time.'
+        );
+      } catch (error) {
+        console.error('Profile load failed:', error);
+        if (!cancelled) {
+          setProfileStatus('Unable to load profile data from database.');
+        }
+      }
+    };
+
+    void loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEmail]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadFriends = async () => {
+      try {
+        const params = new URLSearchParams({ userEmail: activeEmail });
+        const response = await fetch(`/api/friends?${params.toString()}`, {
+          method: 'GET',
+          cache: 'no-store'
+        });
+
+        if (cancelled) return;
+        if (!response.ok) {
+          throw new Error(`Friends load failed (${response.status})`);
+        }
+
+        const data = (await response.json()) as {
+          friends?: {
+            id?: number;
+            displayName?: string;
+            username?: string;
+            email?: string;
+          }[];
+        };
+
+        const rows = Array.isArray(data.friends)
+          ? data.friends.map((friend) => ({
+              id: Number(friend.id ?? 0),
+              displayName: friend.displayName?.trim() || friend.username?.trim() || 'Unknown',
+              username: friend.username?.trim() || '',
+              email: friend.email?.trim() || ''
+            }))
+          : [];
+
+        setFriends(rows);
+      } catch (error) {
+        console.error('Friends load failed:', error);
+      }
+    };
+
+    void loadFriends();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeEmail]);
 
   const onImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -25,15 +136,108 @@ export function ProfilePage() {
     setAvatarSrc(imageUrl);
   };
 
-  const addFriend = (event: FormEvent) => {
+  const saveProfile = async () => {
+    setIsProfileSaving(true);
+    setProfileStatus('');
+
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: activeEmail,
+          name,
+          bio
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Save failed (${response.status})`);
+      }
+
+      setProfileStatus('Profile saved to database.');
+    } catch (error) {
+      console.error('Profile save failed:', error);
+      setProfileStatus(error instanceof Error ? error.message : 'Unable to save profile.');
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
+
+  const addFriend = async (event: FormEvent) => {
     event.preventDefault();
-    if (!friendEmail.includes('@')) {
-      setStatus('Enter a valid email address.');
+    const nextFriendIdentifier = friendInput.trim().toLowerCase();
+
+    if (!nextFriendIdentifier) {
+      setFriendStatus('Enter a valid username or email.');
       return;
     }
 
-    setStatus(`Friend request sent to ${friendEmail}.`);
-    setFriendEmail('');
+    setIsFriendSaving(true);
+    setFriendStatus('');
+
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userEmail: activeEmail,
+          friendIdentifier: nextFriendIdentifier
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Add friend failed (${response.status})`);
+      }
+
+      const data = (await response.json()) as {
+        alreadyExists?: boolean;
+        friend?: {
+          id?: number;
+          displayName?: string;
+          username?: string;
+          email?: string;
+        };
+      };
+
+      const savedFriend = data.friend
+        ? {
+            id: Number(data.friend.id ?? 0),
+            displayName:
+              data.friend.displayName?.trim() || data.friend.username?.trim() || 'Unknown',
+            username: data.friend.username?.trim() || '',
+            email: data.friend.email?.trim() || ''
+          }
+        : null;
+
+      if (data.alreadyExists) {
+        const label = nextFriendIdentifier.includes('@')
+          ? nextFriendIdentifier
+          : `@${nextFriendIdentifier}`;
+        setFriendStatus(`${label} is already in your friends list.`);
+      } else {
+        const label = nextFriendIdentifier.includes('@')
+          ? nextFriendIdentifier
+          : `@${nextFriendIdentifier}`;
+        setFriendStatus(`${label} saved to your friends list.`);
+      }
+
+      if (savedFriend) {
+        setFriends((prev) => {
+          const exists = prev.some((item) => item.id === savedFriend.id);
+          if (exists) return prev;
+          return [savedFriend, ...prev];
+        });
+      }
+      setFriendInput('');
+    } catch (error) {
+      console.error('Add friend failed:', error);
+      setFriendStatus(error instanceof Error ? error.message : 'Unable to save friend.');
+    } finally {
+      setIsFriendSaving(false);
+    }
   };
 
   const onSignOut = () => {
@@ -46,18 +250,23 @@ export function ProfilePage() {
       <Card>
         <div className="flex items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Profile</h1>
-          <Button variant="secondary" onClick={onSignOut}>
+          <Button variant="secondary" onClick={onSignOut} disabled={isProfileSaving}>
             Sign Out
           </Button>
         </div>
+        <p className="mt-1 text-xs soft-text">Connected account: {activeEmail}</p>
         <div className="mt-4 flex items-center gap-4">
           <Image src={avatarSrc} alt="Profile avatar" width={80} height={80} className="rounded-sm border border-white/15 object-cover" />
           <div className="flex-1 space-y-2">
             <Input value={name} onChange={(event) => setName(event.target.value)} placeholder="Name" />
             <Input value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Bio" />
             <Input type="file" accept="image/*" onChange={onImageChange} />
+            <Button onClick={saveProfile} disabled={isProfileSaving}>
+              {isProfileSaving ? 'Saving...' : 'Save Profile'}
+            </Button>
           </div>
         </div>
+        {profileStatus ? <p className="mt-3 text-sm soft-text">{profileStatus}</p> : null}
       </Card>
 
       <Card>
@@ -68,15 +277,41 @@ export function ProfilePage() {
 
         <form onSubmit={addFriend} className="mt-4 space-y-3">
           <Input
-            type="email"
-            value={friendEmail}
-            onChange={(event) => setFriendEmail(event.target.value)}
-            placeholder="Enter friend email address"
+            type="text"
+            value={friendInput}
+            onChange={(event) => setFriendInput(event.target.value)}
+            placeholder="Enter friend username or email"
           />
-          <Button type="submit">Send Friend Request</Button>
+          <Button type="submit" disabled={isFriendSaving}>
+            {isFriendSaving ? 'Saving...' : 'Send Friend Request'}
+          </Button>
         </form>
 
-        {status ? <p className="mt-3 text-sm soft-text">{status}</p> : null}
+        {friendStatus ? <p className="mt-3 text-sm soft-text">{friendStatus}</p> : null}
+
+        <div className="mt-4 space-y-2">
+          <p className="text-xs font-mono uppercase tracking-[0.16em] soft-text">
+            Your friends
+          </p>
+          {friends.length > 0 ? (
+            friends.map((friend) => (
+              <div
+                key={`${friend.id}-${friend.username}`}
+                className="rounded-sm border border-white/10 bg-black/45 px-3 py-2"
+              >
+                <p className="font-mono text-sm uppercase tracking-[0.08em]">
+                  {friend.displayName}
+                </p>
+                <p className="text-xs soft-text">
+                  @{friend.username}
+                  {friend.email ? ` • ${friend.email}` : ''}
+                </p>
+              </div>
+            ))
+          ) : (
+            <p className="text-sm soft-text">No friends added yet.</p>
+          )}
+        </div>
       </Card>
     </div>
   );
