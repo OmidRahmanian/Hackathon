@@ -1,13 +1,22 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Bot, Sparkles } from 'lucide-react';
 import { ChatMessage } from '@/types/app';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/components/features/auth-provider';
 
 const LOCALHOST_URL_ONLY_PATTERN = /^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\/?$/i;
+
+type CoachHistoryResponse = {
+  messages?: Array<{
+    id?: string | number;
+    role?: 'user' | 'assistant';
+    text?: string;
+  }>;
+};
 
 function isInvalidCoachResponse(text: string) {
   const trimmed = text.trim();
@@ -22,6 +31,51 @@ export function AICoachPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const { userEmail } = useAuth();
+
+  const activeUserId = useMemo(() => {
+    const normalized = userEmail?.trim().toLowerCase();
+    return normalized && normalized.includes('@') ? normalized : 'demo';
+  }, [userEmail]);
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadHistory = async () => {
+      try {
+        const params = new URLSearchParams({ userId: activeUserId });
+        const response = await fetch(`/api/coach?${params.toString()}`, { cache: 'no-store' });
+        if (!response.ok) return;
+
+        const data: CoachHistoryResponse = await response.json();
+        if (!Array.isArray(data.messages) || canceled) return;
+
+        const restored = data.messages
+          .map((message, index): ChatMessage | null => {
+            const role = message.role;
+            const text = typeof message.text === 'string' ? message.text.trim() : '';
+            if (!role || !text) return null;
+
+            return {
+              id: String(message.id ?? `${activeUserId}-${index}`),
+              role,
+              text
+            };
+          })
+          .filter((message): message is ChatMessage => Boolean(message));
+
+        setMessages(restored);
+      } catch {
+        // Keep UI usable even if history fetch fails.
+      }
+    };
+
+    void loadHistory();
+
+    return () => {
+      canceled = true;
+    };
+  }, [activeUserId]);
 
   const helperText = 'Ask any question. The coach is not limited to posture topics.';
 
@@ -40,7 +94,8 @@ export function AICoachPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          question: text
+          question: text,
+          userId: activeUserId
         })
       });
 

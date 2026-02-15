@@ -36,6 +36,15 @@ CREATE TABLE history (
 );
 CREATE INDEX IF NOT EXISTS idx_history_user_id_start_date ON history (user_id, start_date DESC);
 
+CREATE TABLE IF NOT EXISTS coach_chat_history (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
+    message TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_coach_chat_history_user_id_id ON coach_chat_history (user_id, id DESC);
+
 CREATE TABLE streak (
     id SERIAL PRIMARY KEY,
     streak_id INT UNIQUE,

@@ -41,9 +41,21 @@ export type LeaderboardRow = {
   score: number | null;
 };
 
+export type CoachChatRole = "user" | "assistant";
+
+export type CoachChatRow = {
+  id: number;
+  user_id: number;
+  role: CoachChatRole;
+  message: string;
+  created_at: Date | string;
+};
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
+
+let coachChatTableReady: Promise<void> | null = null;
 
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
@@ -56,6 +68,32 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
     console.error("DB error:", err);
     return { rows: [], rowCount: 0 };
   }
+}
+
+async function ensureCoachChatTable() {
+  if (!coachChatTableReady) {
+    coachChatTableReady = (async () => {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS coach_chat_history (
+          id SERIAL PRIMARY KEY,
+          user_id INT NOT NULL,
+          role VARCHAR(20) NOT NULL CHECK (role IN ('user', 'assistant')),
+          message TEXT NOT NULL,
+          created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_coach_chat_history_user_id_id
+        ON coach_chat_history (user_id, id DESC);
+      `);
+    })().catch((error) => {
+      coachChatTableReady = null;
+      throw error;
+    });
+  }
+
+  await coachChatTableReady;
 }
 
 function toUserIdFallback(userId: string) {
@@ -315,6 +353,54 @@ export async function getLeaderboard(): Promise<LeaderboardRow[]> {
     `
   );
   return res.rows;
+}
+
+export async function saveCoachChatTurn(params: {
+  userId: string;
+  userMessage: string;
+  assistantMessage: string;
+}): Promise<void> {
+  try {
+    await ensureCoachChatTable();
+    const historyUserId = await resolveHistoryUserId(params.userId);
+
+    await pool.query(
+      `
+        INSERT INTO coach_chat_history (user_id, role, message)
+        VALUES ($1, 'user', $2), ($1, 'assistant', $3);
+      `,
+      [historyUserId, params.userMessage, params.assistantMessage]
+    );
+  } catch (error) {
+    console.error("Coach chat save error:", error);
+  }
+}
+
+export async function getCoachChatHistory(params: {
+  userId: string;
+  limit?: number;
+}): Promise<CoachChatRow[]> {
+  try {
+    await ensureCoachChatTable();
+    const historyUserId = await resolveHistoryUserId(params.userId);
+    const safeLimit = Math.min(Math.max(params.limit ?? 100, 1), 500);
+
+    const result = await pool.query<CoachChatRow>(
+      `
+        SELECT id, user_id, role, message, created_at
+        FROM coach_chat_history
+        WHERE user_id = $1
+        ORDER BY id DESC
+        LIMIT $2;
+      `,
+      [historyUserId, safeLimit]
+    );
+
+    return [...result.rows].reverse();
+  } catch (error) {
+    console.error("Coach chat history fetch error:", error);
+    return [];
+  }
 }
 
 export async function getUserStreak(userId: string): Promise<StreakRow | null> {

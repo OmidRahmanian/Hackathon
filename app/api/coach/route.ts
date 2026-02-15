@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { getCoachChatHistory, saveCoachChatTurn } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -8,6 +9,7 @@ If you are uncertain, say so instead of inventing details.`;
 
 type CoachRequestBody = {
   question?: string;
+  userId?: string;
 };
 
 const DEFAULT_LLM_URL = "http://127.0.0.1:11434";
@@ -32,6 +34,12 @@ function buildFallback(question: string): string {
     "",
     "Try again in a few seconds. If this keeps happening, verify Ollama is running and reachable.",
   ].join("\n");
+}
+
+function resolveCoachUserId(value: unknown): string {
+  if (typeof value !== "string") return "demo";
+  const normalized = value.trim().toLowerCase();
+  return normalized || "demo";
 }
 
 async function callLocalModel(userMessage: string) {
@@ -71,12 +79,14 @@ async function callLocalModel(userMessage: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { question }: CoachRequestBody = (await req.json().catch(() => ({}))) ?? {};
+  const { question, userId }: CoachRequestBody =
+    (await req.json().catch(() => ({}))) ?? {};
 
   if (typeof question !== "string" || !question.trim()) {
     return new Response("Missing 'question' in request body.", { status: 400 });
   }
 
+  const activeUserId = resolveCoachUserId(userId);
   const userMessage = question.trim();
 
   let aiText: string | undefined;
@@ -88,6 +98,11 @@ export async function POST(req: NextRequest) {
   }
 
   const result = aiText ?? buildFallback(userMessage);
+  await saveCoachChatTurn({
+    userId: activeUserId,
+    userMessage,
+    assistantMessage: result
+  });
 
   return new Response(result, {
     status: 200,
@@ -95,6 +110,21 @@ export async function POST(req: NextRequest) {
   });
 }
 
-export async function GET() {
-  return Response.json({ message: "Use POST" });
+export async function GET(req: NextRequest) {
+  const rawUserId = req.nextUrl.searchParams.get("userId");
+  if (typeof rawUserId !== "string" || !rawUserId.trim()) {
+    return Response.json({ message: "Use POST" });
+  }
+
+  const userId = resolveCoachUserId(rawUserId);
+  const rows = await getCoachChatHistory({ userId, limit: 200 });
+
+  return Response.json({
+    messages: rows.map((row) => ({
+      id: row.id,
+      role: row.role,
+      text: row.message,
+      createdAt: row.created_at
+    }))
+  });
 }
