@@ -8,6 +8,7 @@ import { useAuth } from '@/components/features/auth-provider';
 
 const activities = ['Studying', 'Browsing', 'Multimedia'] as const;
 const EVENT_DEBOUNCE_MS = 10_000;
+const LAST_LOG_TS_STORAGE_KEY = 'postureos-monitor-last-log-ts';
 
 type MonitorEventType =
   | 'SESSION_START'
@@ -24,6 +25,7 @@ export function MonitorPage() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [now, setNow] = useState(() => new Date());
   const seenLogLinesRef = useRef<Set<string>>(new Set());
+  const lastProcessedLogTsRef = useRef<number>(0);
   const lastBadPostureEventAtRef = useRef(0);
   const lastTooCloseEventAtRef = useRef(0);
   const eventUserId = useMemo(() => {
@@ -60,25 +62,76 @@ export function MonitorPage() {
     void postEvent(type, activity);
   };
 
+  const parseLogLine = (line: string) => {
+    const match = line.match(/^\[([^\]]+)\]\s*(.*)$/);
+    if (!match) return { timestampMs: null, message: line };
+    const timestampMs = Date.parse(match[1]);
+    return {
+      timestampMs: Number.isFinite(timestampMs) ? timestampMs : null,
+      message: match[2] ?? line
+    };
+  };
+
   const processMonitorLogs = (recentLogs: string[] | undefined, activity?: string | null) => {
     if (!Array.isArray(recentLogs) || recentLogs.length === 0) return;
 
+    let nextLastProcessedTs = lastProcessedLogTsRef.current;
     for (const line of recentLogs) {
-      if (!line || seenLogLinesRef.current.has(line)) continue;
-      seenLogLinesRef.current.add(line);
+      if (!line) continue;
+      const parsed = parseLogLine(line);
+      if (
+        parsed.timestampMs !== null &&
+        parsed.timestampMs <= lastProcessedLogTsRef.current
+      ) {
+        continue;
+      }
+      if (parsed.timestampMs === null && seenLogLinesRef.current.has(line)) continue;
 
-      if (line.includes('Fix your posture!')) {
+      if (parsed.timestampMs === null) {
+        seenLogLinesRef.current.add(line);
+      } else {
+        nextLastProcessedTs = Math.max(nextLastProcessedTs, parsed.timestampMs);
+      }
+
+      if (parsed.message.includes('Fix your posture!')) {
         maybePostDebouncedEvent('BAD_POSTURE', activity ?? selectedActivity);
       }
 
-      if (line.includes('Too Close to Screen!')) {
+      if (parsed.message.includes('Too Close to Screen!')) {
         maybePostDebouncedEvent('TOO_CLOSE', activity ?? selectedActivity);
+      }
+    }
+
+    if (nextLastProcessedTs > lastProcessedLogTsRef.current) {
+      lastProcessedLogTsRef.current = nextLastProcessedTs;
+      try {
+        window.sessionStorage.setItem(
+          LAST_LOG_TS_STORAGE_KEY,
+          String(lastProcessedLogTsRef.current)
+        );
+      } catch {
+        // Ignore sessionStorage write failures.
       }
     }
   };
 
   useEffect(() => {
     let cancelled = false;
+    try {
+      const stored = window.sessionStorage.getItem(LAST_LOG_TS_STORAGE_KEY);
+      const parsed = Number(stored);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        lastProcessedLogTsRef.current = parsed;
+      } else {
+        lastProcessedLogTsRef.current = Date.now();
+        window.sessionStorage.setItem(
+          LAST_LOG_TS_STORAGE_KEY,
+          String(lastProcessedLogTsRef.current)
+        );
+      }
+    } catch {
+      lastProcessedLogTsRef.current = Date.now();
+    }
 
     const loadStatus = async () => {
       try {

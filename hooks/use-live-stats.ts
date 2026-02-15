@@ -8,6 +8,7 @@ type StatsSummaryResponse = {
   timeRange: { from: number; to: number };
   range: 'day' | 'week';
   userScore: number;
+  userFailureCount: number;
   badPostureCount: number;
   tooCloseCount: number;
   scoreAverage: number;
@@ -22,6 +23,7 @@ const ZERO_STATS: StatsSummaryResponse = {
   timeRange: { from: 0, to: 0 },
   range: 'day',
   userScore: 0,
+  userFailureCount: 0,
   badPostureCount: 0,
   tooCloseCount: 0,
   scoreAverage: 0,

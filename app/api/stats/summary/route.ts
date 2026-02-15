@@ -8,6 +8,33 @@ const WEEK_SECONDS = 7 * DAY_SECONDS;
 
 type RangeType = "day" | "week";
 
+function toEpochSeconds(value: Date | string | null | undefined) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  const ms = date.getTime();
+  if (!Number.isFinite(ms)) return null;
+  return Math.floor(ms / 1000);
+}
+
+function getSessionMinutes(
+  row: {
+    session_time_minutes: number | null;
+    start_date: Date | string | null;
+    end_date: Date | string | null;
+  },
+  nowTs: number
+) {
+  if (typeof row.session_time_minutes === "number" && Number.isFinite(row.session_time_minutes)) {
+    return Math.max(0, row.session_time_minutes);
+  }
+
+  const startTs = toEpochSeconds(row.start_date);
+  if (startTs === null) return 0;
+
+  const endTs = toEpochSeconds(row.end_date) ?? nowTs;
+  return Math.max(0, Math.floor((endTs - startTs) / 60));
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId") || "demo";
@@ -23,20 +50,26 @@ export async function GET(req: NextRequest) {
 
   const badPostureCount = history.reduce((sum, row) => sum + (row.bad_pos ?? 0), 0);
   const tooCloseCount = history.reduce((sum, row) => sum + (row.too_close_count ?? 0), 0);
+  const userFailureCount = badPostureCount + tooCloseCount;
   const scoreAverage = history.length > 0 ? tooCloseCount / history.length : 0;
 
-  const activityBreakdown = history.reduce<Record<string, number>>((acc, row) => {
+  const activityBreakdownRaw = history.reduce<Record<string, number>>((acc, row) => {
     if (row.topic) {
-      acc[row.topic] = (acc[row.topic] ?? 0) + 1;
+      const minutes = getSessionMinutes(row, toTs);
+      acc[row.topic] = (acc[row.topic] ?? 0) + minutes / 60;
     }
     return acc;
   }, {});
+  const activityBreakdown = Object.fromEntries(
+    Object.entries(activityBreakdownRaw).map(([topic, hours]) => [topic, Number(hours.toFixed(2))])
+  );
 
   const response = {
     userId,
     timeRange: { from: fromTs, to: toTs },
     range,
     userScore,
+    userFailureCount,
     badPostureCount,
     tooCloseCount,
     scoreAverage,

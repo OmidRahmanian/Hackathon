@@ -62,6 +62,12 @@ function getCurrentHourTrendLabels(now: Date) {
   return labels;
 }
 
+function formatHours(hours: number) {
+  if (!Number.isFinite(hours)) return '0';
+  if (Number.isInteger(hours)) return String(hours);
+  return hours.toFixed(2).replace(/\.?0+$/, '');
+}
+
 export function StatsDashboard() {
   const { stats, loading: statsLoading, error: statsError } = useLiveStats();
   const { userEmail } = useAuth();
@@ -203,9 +209,9 @@ export function StatsDashboard() {
           <h2 className="mt-1 font-mono text-xl font-semibold">{timeRangeLabel}</h2>
           <div className="mt-4 grid grid-cols-1 gap-3">
             <div className="rounded-sm border border-white/10 bg-black/45 p-4">
-              <p className="text-sm soft-text">Bad posture events</p>
-              <motion.p key={stats.badPostureCount} initial={{ scale: 1.08 }} animate={{ scale: 1 }} className="mt-1 font-mono text-3xl font-bold text-[var(--accent-3)]">
-                {stats.badPostureCount}
+              <p className="text-sm soft-text">User Failiure</p>
+              <motion.p key={stats.userFailureCount} initial={{ scale: 1.08 }} animate={{ scale: 1 }} className="mt-1 font-mono text-3xl font-bold text-[var(--accent-3)]">
+                {stats.userFailureCount}
               </motion.p>
               {statsLoading ? <p className="mt-1 text-xs soft-text">Loading...</p> : null}
               {statsError ? <p className="mt-1 text-xs text-[var(--accent-2)]">{statsError}</p> : null}
@@ -244,7 +250,7 @@ export function StatsDashboard() {
               activityRows.map((activity) => (
               <div key={activity.id} className="flex items-center justify-between rounded-sm border border-white/10 bg-black/45 px-4 py-3">
                 <span className="font-mono uppercase tracking-[0.12em]">{activity.name}</span>
-                <span className="font-mono font-semibold">{activity.hours} hr</span>
+                <span className="font-mono font-semibold">{formatHours(activity.hours)} hr</span>
               </div>
               ))
             ) : (

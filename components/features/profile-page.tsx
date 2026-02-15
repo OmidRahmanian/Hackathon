@@ -17,9 +17,13 @@ export function ProfilePage() {
   const [avatarSrc, setAvatarSrc] = useState('/avatar-1.svg');
   const [friendInput, setFriendInput] = useState('');
   const [profileStatus, setProfileStatus] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState('');
   const [friendStatus, setFriendStatus] = useState('');
   const [isProfileSaving, setIsProfileSaving] = useState(false);
+  const [isPasswordSaving, setIsPasswordSaving] = useState(false);
   const [isFriendSaving, setIsFriendSaving] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [friends, setFriends] = useState<
     {
       id: number;
@@ -165,6 +169,44 @@ export function ProfilePage() {
     }
   };
 
+  const changePassword = async () => {
+    if (!currentPassword || !newPassword) {
+      setPasswordStatus('Enter your current and new password.');
+      return;
+    }
+
+    setIsPasswordSaving(true);
+    setPasswordStatus('');
+
+    try {
+      const response = await fetch('/api/profile/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: activeEmail,
+          currentPassword,
+          newPassword
+        })
+      });
+
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Password change failed (${response.status})`);
+      }
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setPasswordStatus('Password updated successfully.');
+    } catch (error) {
+      console.error('Password change failed:', error);
+      setPasswordStatus(
+        error instanceof Error ? error.message : 'Unable to change password.'
+      );
+    } finally {
+      setIsPasswordSaving(false);
+    }
+  };
+
   const addFriend = async (event: FormEvent) => {
     event.preventDefault();
     const nextFriendIdentifier = friendInput.trim().toLowerCase();
@@ -264,9 +306,25 @@ export function ProfilePage() {
             <Button onClick={saveProfile} disabled={isProfileSaving}>
               {isProfileSaving ? 'Saving...' : 'Save Profile'}
             </Button>
+            <Input
+              type="password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              placeholder="Current password"
+            />
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              placeholder="New password"
+            />
+            <Button onClick={changePassword} disabled={isPasswordSaving}>
+              {isPasswordSaving ? 'Updating...' : 'Change Password'}
+            </Button>
           </div>
         </div>
         {profileStatus ? <p className="mt-3 text-sm soft-text">{profileStatus}</p> : null}
+        {passwordStatus ? <p className="mt-2 text-sm soft-text">{passwordStatus}</p> : null}
       </Card>
 
       <Card>

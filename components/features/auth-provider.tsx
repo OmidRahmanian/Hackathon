@@ -11,6 +11,7 @@ import {
 
 const AUTH_STORAGE_KEY = 'postureos-auth';
 const AUTH_EMAIL_KEY = 'postureos-auth-email';
+const AUTH_COOKIE_KEY = 'postureos-auth';
 
 type AuthContextType = {
   ready: boolean;
@@ -30,6 +31,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const current = window.localStorage.getItem(AUTH_STORAGE_KEY);
     const currentEmail = window.localStorage.getItem(AUTH_EMAIL_KEY);
+
+    if (current === '1') {
+      document.cookie = `${AUTH_COOKIE_KEY}=1; Path=/; Max-Age=2592000; SameSite=Lax`;
+    } else {
+      document.cookie = `${AUTH_COOKIE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
+    }
+
     setIsAuthenticated(current === '1');
     setUserEmail(current === '1' ? currentEmail : null);
     setReady(true);
@@ -53,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const normalizedEmail = email.trim().toLowerCase();
     window.localStorage.setItem(AUTH_STORAGE_KEY, '1');
     window.localStorage.setItem(AUTH_EMAIL_KEY, normalizedEmail);
+    document.cookie = `${AUTH_COOKIE_KEY}=1; Path=/; Max-Age=2592000; SameSite=Lax`;
     setIsAuthenticated(true);
     setUserEmail(normalizedEmail);
     return true;
@@ -61,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     window.localStorage.removeItem(AUTH_STORAGE_KEY);
     window.localStorage.removeItem(AUTH_EMAIL_KEY);
+    document.cookie = `${AUTH_COOKIE_KEY}=; Path=/; Max-Age=0; SameSite=Lax`;
     setIsAuthenticated(false);
     setUserEmail(null);
   };
