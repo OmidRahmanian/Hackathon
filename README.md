@@ -176,6 +176,52 @@ App default URL: `http://localhost:3000`
 | `/api/coach/history` | `GET` | AI chat history |
 | `/api/coach/recommendation` | `GET` | Weekly recommendation |
 
+## Contributors and Contributions
+
+Use this section to clearly show who built what. This is useful for recruiters, reviewers, and team grading.
+
+### Team Contributions
+
+### @gurkarangill07
+- Name: Gurkaran
+- Role: Product Lead, Frontend Engineer, Integration
+- Key contributions:
+  - Proposed the core app concept and feature direction from scratch.
+  - Designed and implemented the frontend experience across the major product surfaces.
+  - Implemented current score display logic and dashboard-facing score behavior.
+  - Implemented the auto-updating time behavior on dashboard and live monitor views.
+  - Implemented reminders page UI behavior, including popup reminder interactions.
+  - Integrated the Ask Me Anything chatbot UI with backend APIs.
+  - Connected frontend flows to teammate-built backend APIs across key features.
+- Proof:
+  - PRs: https://github.com/OmidRahmanian/Hackathon/pulls?q=is%3Apr+author%3Agurkarangill07
+  - Commits: https://github.com/OmidRahmanian/Hackathon/commits/main/?author=gurkarangill07
+
+### @SahandSZH
+- Name: Sahand
+- Role: Backend, AI Logic, Data Integration
+- Key contributions:
+  - Implemented backend APIs used to connect frontend flows to the data layer.
+  - Built backend logic for AI Coach and weekly AI recommendations.
+  - Set up PostgreSQL backend integration and related API plumbing.
+  - Implemented backend logic for friends leaderboard behavior.
+  - Contributed to database-related backend work with Omid.
+- Proof:
+  - PRs: https://github.com/OmidRahmanian/Hackathon/pulls?q=is%3Apr+author%3ASahandSZH
+  - Commits: https://github.com/OmidRahmanian/Hackathon/commits/main/?author=SahandSZH
+
+### @OmidRahmanian
+- Name: Omid
+- Role: Computer Vision, Posture Analysis, Database
+- Key contributions:
+  - Implemented the camera monitoring flow triggered by the monitor start action.
+  - Built posture analysis logic used during live detection sessions.
+  - Built the primary database schema foundation and core DB setup.
+  - Contributed to database implementation with Sahand.
+- Proof:
+  - PRs: https://github.com/OmidRahmanian/Hackathon/pulls?q=is%3Apr+author%3AOmidRahmanian
+  - Commits: https://github.com/OmidRahmanian/Hackathon/commits/main/?author=OmidRahmanian
+
 ## Verification Commands
 
 ```bash
