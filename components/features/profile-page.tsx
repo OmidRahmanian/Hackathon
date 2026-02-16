@@ -15,7 +15,7 @@ export function ProfilePage() {
   const { logout, userEmail } = useAuth();
   const [name, setName] = useState('Your Name');
   const [bio, setBio] = useState('Building healthier desk habits one day at a time.');
-  const [avatarSrc, setAvatarSrc] = useState('/avatar-1.svg');
+  const [avatarSrc, setAvatarSrc] = useState('/unisex-avatar.svg');
   const [friendInput, setFriendInput] = useState('');
   const [profileStatus, setProfileStatus] = useState('');
   const [passwordStatus, setPasswordStatus] = useState('');

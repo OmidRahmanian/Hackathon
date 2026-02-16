@@ -1,0 +1,13 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Unisex avatar cartoon">
+  <rect width="256" height="256" rx="28" fill="#0B1020"/>
+  <circle cx="128" cy="132" r="84" fill="#111B33" stroke="#1E2A4F" stroke-width="4"/>
+  <ellipse cx="128" cy="196" rx="58" ry="34" fill="#1A2646"/>
+  <ellipse cx="128" cy="116" rx="40" ry="46" fill="#F4D4B4"/>
+  <path d="M86 110C86 83.49 104.49 66 128 66C151.51 66 170 83.49 170 110V122H86V110Z" fill="#1F2A4A"/>
+  <circle cx="112" cy="114" r="5" fill="#1A2138"/>
+  <circle cx="144" cy="114" r="5" fill="#1A2138"/>
+  <path d="M113 132C118 138 123 141 128 141C133 141 138 138 143 132" stroke="#A8604B" stroke-width="4" stroke-linecap="round"/>
+  <rect x="112" y="154" width="32" height="20" rx="10" fill="#EBC6A4"/>
+  <path d="M86 204C92 184 107 172 128 172C149 172 164 184 170 204" stroke="#CBE4FF" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="128" cy="132" r="84" stroke="#00FF41" stroke-opacity="0.25" stroke-width="2"/>
+</svg>
